@@ -1,0 +1,8 @@
+{
+  "name": "Remix: Tomo AI Master",
+  "description": "교사와 관리자를 위한 유아교육용 프롬프트 및 데이터 통합 관리 어시스턴트 서비스",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
