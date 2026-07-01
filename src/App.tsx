@@ -2239,7 +2239,7 @@ export default function App() {
                     }`}
                   >
                     <FolderSync className="w-3.5 h-3.5" />
-                    <span>프롬프트 팩토리</span>
+                    <span>공장</span>
                   </button>
 
                   {/* Menu Option 2: 디자인 팩토리 */}
