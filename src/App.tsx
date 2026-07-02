@@ -1286,49 +1286,68 @@ export default function App() {
 
   if (!isLoggedIn) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#001C3D] via-[#00142B] to-[#010814] p-4 font-sans relative overflow-hidden select-none">
-        {/* Floating background decorative patterns */}
-        <div className="absolute top-1/4 -left-1/4 w-96 h-96 bg-[#FF6B6B]/10 rounded-full blur-3xl animate-pulse" />
-        <div className="absolute bottom-1/4 -right-1/4 w-96 h-96 bg-[#FFD93D]/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1.5s' }} />
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-slate-100 to-blue-50/30 p-4 md:p-8 font-sans select-none relative overflow-hidden">
+        {/* Soft elegant background glowing circles */}
+        <div className="absolute -top-40 -left-40 w-96 h-96 bg-[#001C3D]/5 rounded-full blur-3xl" />
+        <div className="absolute -bottom-40 -right-40 w-96 h-96 bg-[#FFD93D]/5 rounded-full blur-3xl" />
 
-        <div className="w-full max-w-md z-10">
+        <div className="w-full max-w-xl z-10">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
-            className="bg-white/95 backdrop-blur-md rounded-3xl p-8 shadow-2xl border border-white/20 relative"
+            className="bg-white rounded-3xl p-8 md:p-12 shadow-2xl border border-slate-100 space-y-8 relative"
           >
-            {/* Top Logo / Branding */}
-            <div className="text-center mb-8 select-none flex justify-center items-center flex-col">
-              <img
-                src={aiGoLogo}
-                alt="Tomo AI Go Logo"
-                className="w-[180px] h-auto object-contain py-2"
-                referrerPolicy="no-referrer"
-              />
+            {/* Header / Brand */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-6">
+              <div className="select-none">
+                <img
+                  src={aiGoLogo}
+                  alt="Tomo AI Go Logo"
+                  className="w-[180px] h-auto object-contain"
+                  referrerPolicy="no-referrer"
+                />
+              </div>
+              <div className="text-xs text-slate-400 font-semibold flex items-center gap-1.5">
+                <span>도움이 필요하신가요?</span>
+                <a href="mailto:support@tomoai.com" className="text-[#001C3D] hover:underline flex items-center gap-0.5 font-bold">
+                  문의하기 <ExternalLink className="w-3 h-3 inline" />
+                </a>
+              </div>
+            </div>
+
+            {/* Title & Slogan */}
+            <div className="space-y-2">
+              <h2 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight">
+                반갑습니다! 👋
+              </h2>
+              <p className="text-sm text-slate-500 font-medium leading-relaxed">
+                토모 AI고는 교사의 수업 설계와 행정 업무를 돕는 지능형 교육 지원 플랫폼입니다.<br className="hidden sm:inline" />
+                시스템 시연을 위해 계정으로 로그인해 주세요.
+              </p>
             </div>
 
             {/* Error Message */}
             {loginError && (
               <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
+                initial={{ opacity: 0, scale: 0.98 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className="mb-6 p-4 bg-rose-50 border border-rose-100 text-[#FF6B6B] rounded-2xl flex items-center gap-3 text-xs font-black shadow-sm"
+                className="p-4 bg-rose-50 border border-rose-100 text-[#FF6B6B] rounded-2xl flex items-center gap-3 text-xs font-black shadow-sm"
               >
                 <AlertTriangle className="w-5 h-5 shrink-0 text-[#FF6B6B]" />
                 <span>{loginError}</span>
               </motion.div>
             )}
 
-            {/* Form */}
-            <form onSubmit={handleLogin} className="space-y-4">
-              <div>
-                <label className="block text-[11px] font-black text-slate-600 mb-1.5 uppercase tracking-wider pl-1">
+            {/* Login Inputs Form */}
+            <form onSubmit={handleLogin} className="space-y-5">
+              <div className="space-y-1.5">
+                <label className="block text-xs font-extrabold text-slate-700 pl-1">
                   아이디
                 </label>
-                <div className="relative">
-                  <span className="absolute inset-y-0 left-0 flex items-center pl-4 text-slate-400">
-                    <Users className="w-4 h-4" />
+                <div className="relative group">
+                  <span className="absolute inset-y-0 left-0 flex items-center pl-4 text-slate-400 group-focus-within:text-[#001C3D] transition-colors">
+                    <Users className="w-4.5 h-4.5" />
                   </span>
                   <input
                     type="text"
@@ -1339,18 +1358,20 @@ export default function App() {
                       if (loginError) setLoginError(null);
                     }}
                     placeholder="아이디를 입력하세요"
-                    className="w-full pl-11 pr-4 py-3.5 bg-slate-50 hover:bg-slate-100/50 focus:bg-white border border-slate-200 focus:border-[#001C3D] focus:ring-2 focus:ring-[#001C3D]/10 rounded-2xl text-sm font-semibold text-slate-800 transition-all outline-none"
+                    className="w-full pl-12 pr-4 py-3.5 bg-slate-50 hover:bg-slate-100/50 focus:bg-white border border-slate-200 focus:border-[#001C3D] focus:ring-4 focus:ring-[#001C3D]/5 rounded-2xl text-sm font-semibold text-slate-800 transition-all outline-none"
                   />
                 </div>
               </div>
 
-              <div>
-                <label className="block text-[11px] font-black text-slate-600 mb-1.5 uppercase tracking-wider pl-1">
-                  비밀번호
-                </label>
-                <div className="relative">
-                  <span className="absolute inset-y-0 left-0 flex items-center pl-4 text-slate-400">
-                    <Lock className="w-4 h-4" />
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between pl-1">
+                  <label className="block text-xs font-extrabold text-slate-700">
+                    비밀번호
+                  </label>
+                </div>
+                <div className="relative group">
+                  <span className="absolute inset-y-0 left-0 flex items-center pl-4 text-slate-400 group-focus-within:text-[#001C3D] transition-colors">
+                    <Lock className="w-4.5 h-4.5" />
                   </span>
                   <input
                     type={showPassword ? 'text' : 'password'}
@@ -1361,46 +1382,70 @@ export default function App() {
                       if (loginError) setLoginError(null);
                     }}
                     placeholder="비밀번호를 입력하세요"
-                    className="w-full pl-11 pr-12 py-3.5 bg-slate-50 hover:bg-slate-100/50 focus:bg-white border border-slate-200 focus:border-[#001C3D] focus:ring-2 focus:ring-[#001C3D]/10 rounded-2xl text-sm font-semibold text-slate-800 transition-all outline-none"
+                    className="w-full pl-12 pr-12 py-3.5 bg-slate-50 hover:bg-slate-100/50 focus:bg-white border border-slate-200 focus:border-[#001C3D] focus:ring-4 focus:ring-[#001C3D]/5 rounded-2xl text-sm font-semibold text-slate-800 transition-all outline-none"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
                     className="absolute inset-y-0 right-0 flex items-center pr-4 text-slate-400 hover:text-slate-600 transition-colors"
                   >
-                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    {showPassword ? <EyeOff className="w-4.5 h-4.5" /> : <Eye className="w-4.5 h-4.5" />}
                   </button>
                 </div>
               </div>
 
               <button
                 type="submit"
-                className="w-full py-4 bg-[#001C3D] hover:bg-[#002B5C] text-white font-black text-sm rounded-2xl transition-all shadow-md hover:shadow-lg hover:scale-[1.01] active:scale-[0.99] flex items-center justify-center gap-2 mt-6 cursor-pointer"
+                className="w-full py-4 bg-[#001C3D] hover:bg-[#002B5C] text-white font-black text-sm rounded-2xl transition-all shadow-md hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0 flex items-center justify-center gap-2 mt-2 cursor-pointer"
               >
-                <span>로그인하기</span>
+                <span>안전하게 로그인하기</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
             </form>
 
-            {/* Test Credentials Guide */}
-            <div className="mt-8 pt-6 border-t border-dashed border-slate-200">
-              <div className="bg-[#FFF9E6] border border-[#FFE8A3] rounded-2xl p-4 text-[11px] text-[#554400] space-y-1.5 leading-relaxed font-medium">
-                <p className="font-bold text-[#443300] flex items-center gap-1.5">
-                  <Info className="w-3.5 h-3.5 text-[#FFD93D] fill-current" />
-                  임시 인증 정보 안내 (데모용)
-                </p>
-                <p>시스템 시연을 위한 권한별 임시 계정 정보입니다.</p>
-                <div className="space-y-1 mt-1 font-semibold">
-                  <div className="flex items-center justify-between bg-white/60 px-2 py-1 rounded border border-[#FFD93D]/30">
-                    <span className="font-bold text-[#001C3D]">👑 관리자 (ADMIN)</span>
-                    <span className="text-slate-600">ID: <code className="font-black font-mono">admin</code> / PW: <code className="font-black font-mono">1234</code></span>
+            {/* Test Credentials Guide (Web Style Card Grid) */}
+            <div className="pt-6 border-t border-dashed border-slate-100">
+              <div className="bg-slate-50 border border-slate-100 rounded-2xl p-5 text-xs text-slate-600 space-y-3 leading-relaxed">
+                <div className="flex items-center gap-2">
+                  <div className="p-1 bg-[#FFD93D]/10 text-[#cca600] rounded-md shrink-0">
+                    <Info className="w-4 h-4" />
                   </div>
-                  <div className="flex items-center justify-between bg-white/60 px-2 py-1 rounded border border-[#FFD93D]/30">
-                    <span className="font-bold text-[#FF6B6B]">🏡 교사 (TEACHER)</span>
-                    <span className="text-slate-600">ID: <code className="font-black font-mono">teacher</code> / PW: <code className="font-black font-mono">1234</code></span>
+                  <span className="font-extrabold text-slate-800 text-[13px]">
+                    테스트 시연용 인증 계정 정보
+                  </span>
+                </div>
+                <p className="text-slate-500 font-medium leading-relaxed pl-1">
+                  아래의 사전 제공된 역할별 가상 계정 정보를 사용하여 서비스의 세분화된 맞춤 기능들을 즉각 테스트해 볼 수 있습니다.
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+                  <div className="p-3 bg-white border border-slate-200/60 rounded-xl hover:border-slate-300 transition-all shadow-sm">
+                    <div className="font-bold text-xs text-[#001C3D] flex items-center gap-1.5 mb-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#001C3D]" />
+                      관리자 (ADMIN)
+                    </div>
+                    <div className="text-[11px] text-slate-500 space-y-0.5 font-medium font-mono">
+                      <div>ID: <strong className="text-slate-800">admin</strong></div>
+                      <div>PW: <strong className="text-slate-800">1234</strong></div>
+                    </div>
+                  </div>
+
+                  <div className="p-3 bg-white border border-slate-200/60 rounded-xl hover:border-slate-300 transition-all shadow-sm">
+                    <div className="font-bold text-xs text-[#FF6B6B] flex items-center gap-1.5 mb-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#FF6B6B]" />
+                      교사 (TEACHER)
+                    </div>
+                    <div className="text-[11px] text-slate-500 space-y-0.5 font-medium font-mono">
+                      <div>ID: <strong className="text-slate-800">teacher</strong></div>
+                      <div>PW: <strong className="text-slate-800">1234</strong></div>
+                    </div>
                   </div>
                 </div>
               </div>
+            </div>
+
+            {/* Bottom Warning/Footer */}
+            <div className="text-center text-[11px] text-slate-400 font-semibold pt-4 border-t border-slate-100">
+              © 2026 Tomo AI Go. 본 시스템은 최신 기계 학습 지원 도구 및 암호 규격을 적용받고 있습니다.
             </div>
           </motion.div>
         </div>
