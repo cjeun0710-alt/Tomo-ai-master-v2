@@ -103,6 +103,14 @@ export function renderHighlightedText(text: string): React.ReactNode {
   );
 }
 
+// Helper for loose matching of strings (removing prefix '#', trimming, and case-insensitive check)
+const isLooseMatch = (str1: string, str2: string) => {
+  if (!str1 || !str2) return false;
+  const s1 = str1.replace(/^#/, '').trim().toLowerCase();
+  const s2 = str2.replace(/^#/, '').trim().toLowerCase();
+  return s1.includes(s2) || s2.includes(s1);
+};
+
 export default function App() {
   // --- Auth State ---
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(() => {
@@ -1151,12 +1159,19 @@ export default function App() {
         p.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
         p.promptText.toLowerCase().includes(searchQuery.toLowerCase());
 
-      const listForMain = currentSubCategoriesMap[selectedMainCategory] || [];
-      const matchMain = p.mainCategory === selectedMainCategory || (!p.mainCategory && listForMain.includes(p.category));
+      const listForMain = (currentSubCategoriesMap[selectedMainCategory] || []).map(s => s.replace(/^#/, '').trim().toLowerCase());
+      const matchMain = isLooseMatch(p.mainCategory || '', selectedMainCategory) || 
+                        (!p.mainCategory && (
+                          isLooseMatch(p.category || '', selectedMainCategory) ||
+                          listForMain.some(subItem => isLooseMatch(p.category || '', subItem))
+                        ));
 
       let matchSub = true;
       if (selectedSubCategory !== '전체') {
-        matchSub = p.category === selectedSubCategory;
+        const cleanSub = selectedSubCategory.replace(/^#/, '').trim().toLowerCase();
+        const catMatches = isLooseMatch(p.category || '', cleanSub);
+        const tagMatches = (p.tags || []).some(tag => isLooseMatch(tag, cleanSub));
+        matchSub = catMatches || tagMatches;
       }
 
       const matchVisibility = showHidden ? true : !p.isHidden;
@@ -1811,14 +1826,6 @@ export default function App() {
                       
                       // 3. Print log of all prompts to the console as requested by developers
                       console.log(allPrompts);
-
-                      // Helper for loose matching of strings (removing prefix '#', trimming, and case-insensitive check)
-                      const isLooseMatch = (str1: string, str2: string) => {
-                        if (!str1 || !str2) return false;
-                        const s1 = str1.replace(/^#/, '').trim().toLowerCase();
-                        const s2 = str2.replace(/^#/, '').trim().toLowerCase();
-                        return s1.includes(s2) || s2.includes(s1);
-                      };
 
                       // 2. Perform loose filtering
                       let filtered = allPrompts.filter(p => {
