@@ -1850,9 +1850,21 @@ export default function App() {
                         return matchQ && matchMain && matchSub;
                       });
 
-                      // Fallback to all prompts if filtered list is empty
                       if (filtered.length === 0) {
-                        filtered = allPrompts;
+                        return (
+                          <div className="col-span-full p-16 text-center text-slate-400 bg-white rounded-3xl border border-dashed border-slate-200 shadow-sm space-y-4 my-4 animate-fadeIn" key="empty-prompts">
+                            <div className="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center mx-auto text-slate-300">
+                              <HelpCircle className="w-6 h-6 animate-pulse" />
+                            </div>
+                            <div className="space-y-1">
+                              <p className="text-sm font-black text-slate-800">해당 대분류 및 검색 조건에 부합하는 프롬프트가 아직 등록되지 않았습니다.</p>
+                              <p className="text-xs text-slate-500 font-bold leading-relaxed">
+                                [관리자 모드]로 전환하여 이 대분류와 하위 카테고리에 맞는 새 프롬프트 템플릿을 등록해 주시거나,<br className="hidden sm:inline" />
+                                다른 상단 분류 탭을 선택해 주시기 바랍니다.
+                              </p>
+                            </div>
+                          </div>
+                        );
                       }
 
                       return filtered.map(p => (
