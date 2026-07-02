@@ -42,10 +42,12 @@ import {
   Users,
   MoreVertical,
   LogOut,
-  Palette
+  Palette,
+  Lock
 } from 'lucide-react';
 import { INITIAL_PROMPTS, INITIAL_DESIGN_PROMPTS, INITIAL_TEACHERS, CATEGORIES, TAGS } from './data';
 import { PromptTemplate, Teacher } from './types';
+import aiGoLogo from './assets/logo_clear.png';
 
 // Floating Particle/Sticker Interface
 interface FlyingParticle {
@@ -102,8 +104,40 @@ export function renderHighlightedText(text: string): React.ReactNode {
 }
 
 export default function App() {
+  // --- Auth State ---
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem('tomo_is_logged_in');
+      return saved === 'true';
+    } catch (e) {
+      return false;
+    }
+  });
+
+  const [userRole, setUserRole] = useState<'ADMIN' | 'TEACHER'>(() => {
+    try {
+      const saved = localStorage.getItem('tomo_user_role');
+      return saved === 'TEACHER' ? 'TEACHER' : 'ADMIN';
+    } catch (e) {
+      return 'ADMIN';
+    }
+  });
+
+  const [usernameInput, setUsernameInput] = useState<string>('');
+  const [passwordInput, setPasswordInput] = useState<string>('');
+  const [showPassword, setShowPassword] = useState<boolean>(false);
+  const [loginError, setLoginError] = useState<string | null>(null);
+
   // --- Mode State ---
-  const [isAdminMode, setIsAdminMode] = useState<boolean>(true); // Admin by default as per pre-saved view, can be toggled to Teacher Mode.
+  const [isAdminMode, setIsAdminMode] = useState<boolean>(() => {
+    try {
+      const savedRole = localStorage.getItem('tomo_user_role');
+      if (savedRole === 'TEACHER') {
+        return false;
+      }
+    } catch (e) {}
+    return true; // Admin by default, but teacher starts in Teacher Mode.
+  });
 
   // --- Common Prompt & Teacher States ---
   const [prompts, setPrompts] = useState<PromptTemplate[]>(() => {
@@ -540,6 +574,40 @@ export default function App() {
     setTimeout(() => {
       setShowToast(null);
     }, 3000);
+  };
+
+  // Auth Handler Functions
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (usernameInput === 'admin' && passwordInput === '1234') {
+      setIsLoggedIn(true);
+      setUserRole('ADMIN');
+      setLoginError(null);
+      localStorage.setItem('tomo_is_logged_in', 'true');
+      localStorage.setItem('tomo_user_role', 'ADMIN');
+      setIsAdminMode(true);
+      triggerToast('👑 관리자 계정으로 로그인되었습니다!');
+    } else if (usernameInput === 'teacher' && passwordInput === '1234') {
+      setIsLoggedIn(true);
+      setUserRole('TEACHER');
+      setLoginError(null);
+      localStorage.setItem('tomo_is_logged_in', 'true');
+      localStorage.setItem('tomo_user_role', 'TEACHER');
+      setIsAdminMode(false);
+      triggerToast('🏡 교사 계정으로 로그인되었습니다!');
+    } else {
+      setLoginError('아이디 또는 비밀번호를 확인해 주세요');
+    }
+  };
+
+  const handleLogout = () => {
+    setIsLoggedIn(false);
+    setUserRole('ADMIN');
+    setUsernameInput('');
+    setPasswordInput('');
+    localStorage.removeItem('tomo_is_logged_in');
+    localStorage.removeItem('tomo_user_role');
+    triggerToast('🔒 안전하게 로그아웃되었습니다.');
   };
 
   // Rename folder globally with soft-confirmation for official folders
@@ -1216,6 +1284,130 @@ export default function App() {
     }, 200);
   };
 
+  if (!isLoggedIn) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#001C3D] via-[#00142B] to-[#010814] p-4 font-sans relative overflow-hidden select-none">
+        {/* Floating background decorative patterns */}
+        <div className="absolute top-1/4 -left-1/4 w-96 h-96 bg-[#FF6B6B]/10 rounded-full blur-3xl animate-pulse" />
+        <div className="absolute bottom-1/4 -right-1/4 w-96 h-96 bg-[#FFD93D]/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1.5s' }} />
+
+        <div className="w-full max-w-md z-10">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="bg-white/95 backdrop-blur-md rounded-3xl p-8 shadow-2xl border border-white/20 relative"
+          >
+            {/* Top Logo / Branding */}
+            <div className="text-center mb-8 select-none flex justify-center items-center flex-col">
+              <img
+                src={aiGoLogo}
+                alt="Tomo AI Go Logo"
+                className="w-[180px] h-auto object-contain py-2"
+                referrerPolicy="no-referrer"
+              />
+            </div>
+
+            {/* Error Message */}
+            {loginError && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="mb-6 p-4 bg-rose-50 border border-rose-100 text-[#FF6B6B] rounded-2xl flex items-center gap-3 text-xs font-black shadow-sm"
+              >
+                <AlertTriangle className="w-5 h-5 shrink-0 text-[#FF6B6B]" />
+                <span>{loginError}</span>
+              </motion.div>
+            )}
+
+            {/* Form */}
+            <form onSubmit={handleLogin} className="space-y-4">
+              <div>
+                <label className="block text-[11px] font-black text-slate-600 mb-1.5 uppercase tracking-wider pl-1">
+                  아이디
+                </label>
+                <div className="relative">
+                  <span className="absolute inset-y-0 left-0 flex items-center pl-4 text-slate-400">
+                    <Users className="w-4 h-4" />
+                  </span>
+                  <input
+                    type="text"
+                    required
+                    value={usernameInput}
+                    onChange={(e) => {
+                      setUsernameInput(e.target.value);
+                      if (loginError) setLoginError(null);
+                    }}
+                    placeholder="아이디를 입력하세요"
+                    className="w-full pl-11 pr-4 py-3.5 bg-slate-50 hover:bg-slate-100/50 focus:bg-white border border-slate-200 focus:border-[#001C3D] focus:ring-2 focus:ring-[#001C3D]/10 rounded-2xl text-sm font-semibold text-slate-800 transition-all outline-none"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-black text-slate-600 mb-1.5 uppercase tracking-wider pl-1">
+                  비밀번호
+                </label>
+                <div className="relative">
+                  <span className="absolute inset-y-0 left-0 flex items-center pl-4 text-slate-400">
+                    <Lock className="w-4 h-4" />
+                  </span>
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    required
+                    value={passwordInput}
+                    onChange={(e) => {
+                      setPasswordInput(e.target.value);
+                      if (loginError) setLoginError(null);
+                    }}
+                    placeholder="비밀번호를 입력하세요"
+                    className="w-full pl-11 pr-12 py-3.5 bg-slate-50 hover:bg-slate-100/50 focus:bg-white border border-slate-200 focus:border-[#001C3D] focus:ring-2 focus:ring-[#001C3D]/10 rounded-2xl text-sm font-semibold text-slate-800 transition-all outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute inset-y-0 right-0 flex items-center pr-4 text-slate-400 hover:text-slate-600 transition-colors"
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                className="w-full py-4 bg-[#001C3D] hover:bg-[#002B5C] text-white font-black text-sm rounded-2xl transition-all shadow-md hover:shadow-lg hover:scale-[1.01] active:scale-[0.99] flex items-center justify-center gap-2 mt-6 cursor-pointer"
+              >
+                <span>로그인하기</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            </form>
+
+            {/* Test Credentials Guide */}
+            <div className="mt-8 pt-6 border-t border-dashed border-slate-200">
+              <div className="bg-[#FFF9E6] border border-[#FFE8A3] rounded-2xl p-4 text-[11px] text-[#554400] space-y-1.5 leading-relaxed font-medium">
+                <p className="font-bold text-[#443300] flex items-center gap-1.5">
+                  <Info className="w-3.5 h-3.5 text-[#FFD93D] fill-current" />
+                  임시 인증 정보 안내 (데모용)
+                </p>
+                <p>시스템 시연을 위한 권한별 임시 계정 정보입니다.</p>
+                <div className="space-y-1 mt-1 font-semibold">
+                  <div className="flex items-center justify-between bg-white/60 px-2 py-1 rounded border border-[#FFD93D]/30">
+                    <span className="font-bold text-[#001C3D]">👑 관리자 (ADMIN)</span>
+                    <span className="text-slate-600">ID: <code className="font-black font-mono">admin</code> / PW: <code className="font-black font-mono">1234</code></span>
+                  </div>
+                  <div className="flex items-center justify-between bg-white/60 px-2 py-1 rounded border border-[#FFD93D]/30">
+                    <span className="font-bold text-[#FF6B6B]">🏡 교사 (TEACHER)</span>
+                    <span className="text-slate-600">ID: <code className="font-black font-mono">teacher</code> / PW: <code className="font-black font-mono">1234</code></span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={`min-h-screen flex flex-col font-sans transition-colors duration-500 selection:bg-[#FF6B6B]/20 ${
       isAdminMode ? 'bg-[#F5F7FA] text-slate-800' : 'bg-[#FAF8F5] text-[#141414]'
@@ -1229,11 +1421,11 @@ export default function App() {
         {/* Left Area: Branding logo and logo text */}
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 bg-[#001C3D] rounded-xl flex items-center justify-center text-white shadow-md cursor-pointer hover:rotate-12 transition-transform duration-300">
-            <span className="font-sans font-black tracking-tighter text-base">T</span>
+            <span className="font-rounded font-black tracking-tighter text-base">토</span>
           </div>
-          <span className="font-extrabold text-[#001C3D] tracking-tight text-lg flex items-center gap-2">
-            Tomo AI Master
-            <span className="hidden sm:inline bg-slate-100 text-[#001C3D] px-2 py-0.5 rounded-full text-[10px] font-black border border-slate-200">
+          <span className="font-extrabold text-[#001C3D] tracking-tight text-base sm:text-lg flex items-center gap-2 font-rounded">
+            토모 AI고 (Tomo AI Go)
+            <span className="hidden sm:inline bg-slate-100 text-[#001C3D] px-2 py-0.5 rounded-full text-[10px] font-black border border-slate-200 font-sans">
               {isAdminMode ? 'ADMIN MODE' : 'TEACHER APP'}
             </span>
           </span>
@@ -1244,32 +1436,37 @@ export default function App() {
           
           {/* Mode Switcher Buttons */}
           <div className="bg-slate-100 p-1 rounded-2xl flex items-center border border-slate-200/50 shadow-inner">
-            <button
-              id="admin-mode-trigger"
-              onClick={() => {
-                setIsAdminMode(true);
-                triggerToast('👑 관리자 디렉터 권한 제어판이 실행되었습니다.');
-              }}
-              className={`px-4 py-1.5 rounded-xl text-xs font-bold transition-all duration-300 flex items-center gap-1.5 cursor-pointer ${
-                isAdminMode
-                  ? 'bg-[#001C3D] text-white shadow-md'
-                  : 'text-slate-500 hover:text-slate-800'
-              }`}
-            >
-              <div className={`w-1.5 h-1.5 rounded-full ${isAdminMode ? 'bg-[#8EF6D6] animate-ping' : 'bg-slate-400'}`}></div>
-              관리자 모드
-            </button>
+            {userRole === 'ADMIN' && (
+              <button
+                id="admin-mode-trigger"
+                onClick={() => {
+                  setIsAdminMode(true);
+                  triggerToast('👑 관리자 디렉터 권한 제어판이 실행되었습니다.');
+                }}
+                className={`px-4 py-1.5 rounded-xl text-xs font-bold transition-all duration-300 flex items-center gap-1.5 cursor-pointer ${
+                  isAdminMode
+                    ? 'bg-[#001C3D] text-white shadow-md'
+                    : 'text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                <div className={`w-1.5 h-1.5 rounded-full ${isAdminMode ? 'bg-[#8EF6D6] animate-ping' : 'bg-slate-400'}`}></div>
+                관리자 모드
+              </button>
+            )}
             <button
               id="teacher-mode-trigger"
               onClick={() => {
-                setIsAdminMode(false);
-                triggerToast('🏡 햇살반 전소은 교사 친환경 모드가 실행되었습니다.');
+                if (userRole === 'ADMIN') {
+                  setIsAdminMode(false);
+                  triggerToast('🏡 햇살반 전소은 교사 친환경 모드가 실행되었습니다.');
+                }
               }}
               className={`px-4 py-1.5 rounded-xl text-xs font-bold transition-all duration-300 flex items-center gap-1.5 cursor-pointer ${
                 !isAdminMode
                   ? 'bg-[#FF6B6B] text-white shadow-md'
                   : 'text-slate-500 hover:text-slate-800'
               }`}
+              disabled={userRole !== 'ADMIN'}
             >
               <div className={`w-1.5 h-1.5 rounded-full ${!isAdminMode ? 'bg-[#FFD93D] animate-ping' : 'bg-slate-400'}`}></div>
               교사 모드
@@ -1284,28 +1481,7 @@ export default function App() {
               </p>
             </div>
 
-            {/* Profile Avatar with absolute Yellow/Sunshine Class Badge directly below */}
-            <div className="relative">
-              <img
-                src={
-                  isAdminMode
-                    ? 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=120'
-                    : 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=120'
-                }
-                alt="Account User"
-                referrerPolicy="no-referrer"
-                className="w-10 h-10 rounded-full border border-slate-200 object-cover shadow-sm bg-[#FFF9E6]"
-              />
-              {/* Mandatory Prominent Yellow Badge [만 3세 햇살반] attached closely below profile */}
-              <div className="absolute -bottom-2 -left-3 transform scale-90">
-                <span
-                  id="header-class-level-badge"
-                  className="bg-[#FFD93D] text-[#443300] text-[9px] font-black px-2 py-0.5 rounded-md shadow-md border border-[#FFE8A3] whitespace-nowrap block"
-                >
-                  [만 3세 햇살반]
-                </span>
-              </div>
-            </div>
+
 
             {/* Prominent Cabinet Drawer control Button: [내 보관함] - ONLY Active in Teacher Mode or shown for premium completeness */}
             {!isAdminMode && (
@@ -1324,6 +1500,16 @@ export default function App() {
                 </span>
               </button>
             )}
+
+            {/* Premium Logout Button */}
+            <button
+              id="tomo-logout-btn"
+              onClick={handleLogout}
+              className="ml-2 p-2 bg-slate-50 hover:bg-rose-50 text-slate-500 hover:text-[#FF6B6B] border border-slate-200 hover:border-rose-100 rounded-xl transition-all shadow-sm hover:shadow flex items-center justify-center cursor-pointer group"
+              title="로그아웃"
+            >
+              <LogOut className="w-4 h-4 group-hover:scale-110 transition-transform" />
+            </button>
           </div>
         </div>
       </header>
@@ -1344,13 +1530,13 @@ export default function App() {
             >
               <div className="flex flex-col">
                 {/* Visual App Logo & Brand inside sidebar */}
-                <div className="p-6 border-b border-[#0d2a4d]/60 bg-[#00142B] flex items-center gap-3">
-                  <div className="w-9 h-9 bg-rose-500 rounded-xl flex items-center justify-center text-white shadow-md cursor-pointer hover:rotate-12 transition-transform duration-300">
-                    <span className="font-sans font-black tracking-tighter text-base">T</span>
-                  </div>
-                  <div>
-                    <h1 className="font-extrabold text-[#FFF] tracking-tight text-sm leading-tight">Tomo AI Master</h1>
-                  </div>
+                <div className="p-5 border-b border-[#0d2a4d]/60 bg-[#00142B] flex justify-center items-center select-none">
+                  <img
+                    src={aiGoLogo}
+                    alt="Tomo AI Go Logo"
+                    className="max-w-[160px] h-auto object-contain py-1"
+                    referrerPolicy="no-referrer"
+                  />
                 </div>
 
                 {/* Left Sidebar Navigation Options as requested verbatim */}
@@ -1358,7 +1544,7 @@ export default function App() {
                   {/* 글쓰기 마스터 그룹 */}
                   <div>
                     <div className="text-sm text-[#E2EDF8] font-bold tracking-wide px-2 mb-3.5 select-none flex items-center justify-between">
-                      <span>📝 글쓰기 마스터</span>
+                      <span>📝 글쓰기 팩토리</span>
                       <span className="text-[10px] bg-indigo-500/20 text-indigo-300 font-medium px-2 py-0.5 rounded-full">Text Mode</span>
                     </div>
                     <div className="space-y-1">
@@ -1401,7 +1587,7 @@ export default function App() {
                   {/* 디자인 마스터 그룹 */}
                   <div>
                     <div className="text-sm text-[#E2EDF8] font-bold tracking-wide px-2 mb-3.5 select-none flex items-center justify-between">
-                      <span>🎨 디자인 마스터</span>
+                      <span>🎨 디자인 팩토리</span>
                       <span className="text-[10px] bg-emerald-500/20 text-emerald-300 font-medium px-2 py-0.5 rounded-full">Design Mode</span>
                     </div>
                     <div className="space-y-1">
@@ -1449,7 +1635,7 @@ export default function App() {
                     <span className="text-[9px] text-slate-500 font-extrabold uppercase tracking-wider block mb-1">도움말 및 지원 (Help & Support)</span>
                     <button
                       type="button"
-                      onClick={() => triggerToast('📚 [사용 가이드] Tomo AI 교무 길라잡이 매뉴얼을 불러옵니다.')}
+                      onClick={() => triggerToast('📚 [사용 가이드] Tomo AI Go 교무 길라잡이 매뉴얼을 불러옵니다.')}
                       className="w-full flex items-center gap-2.5 px-2 py-1.5 rounded-lg text-[11px] font-bold text-slate-400 hover:text-white hover:bg-white/5 transition-all text-left cursor-pointer"
                     >
                       <BookOpen className="w-3.5 h-3.5 text-rose-450" />
@@ -1465,7 +1651,7 @@ export default function App() {
                     </button>
                   </div>
                   <div className="pt-2 text-center text-[10px] text-slate-500 font-bold border-t border-[#0d2a4d]/30">
-                    <span>Tomo AI Director v2.4</span>
+                    <span>Tomo AI Go v2.4</span>
                   </div>
                 </div>
               </aside>
@@ -2211,13 +2397,14 @@ export default function App() {
               id="admin-navy-sidebar"
             >
               <div className="flex flex-col">
-                {/* CMS Core Meta Area */}
-                <div className="p-4 border-b border-[#0d2a4d]/60 bg-[#00142B] flex items-center gap-3">
-                  <div className="w-2.5 h-2.5 rounded-full bg-[#8EF6D6] animate-ping"></div>
-                  <div>
-                    <p className="text-[9px] text-[#8EF6D6] uppercase tracking-widest font-mono font-bold">Tomo CMS Service Node</p>
-                    <p className="text-xs text-slate-100 font-bold font-mono">PORT://3000 Active</p>
-                  </div>
+                {/* Visual App Logo & Brand inside sidebar */}
+                <div className="p-4 border-b border-[#0d2a4d]/60 bg-[#00142B] flex justify-center items-center select-none">
+                  <img
+                    src={aiGoLogo}
+                    alt="Tomo AI Go Logo"
+                    className="max-w-[150px] h-auto object-contain py-1"
+                    referrerPolicy="no-referrer"
+                  />
                 </div>
 
                 {/* Sidebar Navigation Options */}
@@ -2239,7 +2426,7 @@ export default function App() {
                     }`}
                   >
                     <FolderSync className="w-3.5 h-3.5" />
-                    <span>공장</span>
+                    <span>프롬프트 팩토리</span>
                   </button>
 
                   {/* Menu Option 2: 디자인 팩토리 */}

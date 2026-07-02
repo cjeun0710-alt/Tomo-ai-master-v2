@@ -1,7 +1,11 @@
+@import url('https://fonts.googleapis.com/css2?family=Gowun+Dodum&family=Jua&family=Nanum+Pen+Script&display=swap');
 @import "tailwindcss";
 
 @theme {
   --font-sans: 'Pretendard', 'Noto Sans KR', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-rounded: 'Gowun Dodum', 'Pretendard', sans-serif;
+  --font-jua: 'Jua', sans-serif;
+  --font-calligraphy: 'Nanum Pen Script', cursive;
   --color-primary-navy: #001C3D;
   --color-accent-coral: #FF6B6B;
   --color-accent-coral-hover: #fa5353;
@@ -19,6 +23,18 @@ html {
 /* Rounded, friendly styling details */
 body {
   font-family: var(--font-sans);
+}
+
+.font-rounded {
+  font-family: var(--font-rounded), var(--font-sans);
+}
+
+.font-jua {
+  font-family: var(--font-jua), sans-serif;
+}
+
+.font-calligraphy {
+  font-family: var(--font-calligraphy), cursive;
 }
 
 /* Masonry and custom grid visual styling */
