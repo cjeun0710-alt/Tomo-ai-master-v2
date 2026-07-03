@@ -1337,7 +1337,6 @@ export default function App() {
                 반갑습니다! 👋
               </h2>
               <p className="text-sm text-slate-500 font-medium leading-relaxed">
-                토모 AI고는 교사의 수업 설계와 행정 업무를 돕는 지능형 교육 지원 플랫폼입니다.<br className="hidden sm:inline" />
                 시스템 시연을 위해 계정으로 로그인해 주세요.
               </p>
             </div>
