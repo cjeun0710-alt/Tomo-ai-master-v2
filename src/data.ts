@@ -145,6 +145,22 @@ export const INITIAL_DESIGN_PROMPTS: PromptTemplate[] = [
     efficiency: 82,
     isHidden: false,
     createdAt: '2026-06-21'
+  },
+  {
+    id: 'dp3',
+    title: '🎨 인스타그램 카드뉴스 레이아웃 디자인',
+    category: '홍보/안내',
+    mainCategory: '기타',
+    description: '인스타그램 피드 맞춤형 카드뉴스를 빌드하기 위한 마스터 템플릿입니다.',
+    promptText: '인스타그램 카드뉴스 5장 분량 제작 가이드를 빌드해라.',
+    systemGuidance: '너는 소셜 미디어 인스타그램 카드뉴스 디자인 가이드 제작자야. 레이아웃과 서체, 색상을 정밀 분석하여 리포트를 제공하라.',
+    canvasTemplate: '인스타그램 피드 전용 카드뉴스 시안입니다. 권장되는 제작 {{분량:5장 내외}}을 절대적으로 준수해 주시고, 전체 비주얼 톤앤매너는 {{무드 & 레퍼런스:따뜻하고 부드러운 파스텔}} 감성으로 가공해 주세요. 한편, 디테일한 {{디자인 특성:둥근 테두리와 깔끔한 고딕체}}을 배합하여 가독성과 심미성을 모두 완비해 주시길 권장합니다.',
+    tags: ['인스타그램', '디자인', '홍보', '카드뉴스'],
+    runs: 184,
+    satisfaction: 99,
+    efficiency: 95,
+    isHidden: false,
+    createdAt: '2026-06-25'
   }
 ];
 

@@ -152,7 +152,16 @@ export default function App() {
     try {
       const saved = localStorage.getItem('tomo_prompts');
       if (saved) {
-        return JSON.parse(saved);
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          const merged = [...parsed];
+          INITIAL_PROMPTS.forEach(initial => {
+            if (!merged.some(m => m.id === initial.id)) {
+              merged.push(initial);
+            }
+          });
+          return merged;
+        }
       }
     } catch (e) {
       console.error('Failed to load prompts from localStorage:', e);
@@ -175,7 +184,16 @@ export default function App() {
     try {
       const saved = localStorage.getItem('tomo_design_prompts');
       if (saved) {
-        return JSON.parse(saved);
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          const merged = [...parsed];
+          INITIAL_DESIGN_PROMPTS.forEach(initial => {
+            if (!merged.some(m => m.id === initial.id)) {
+              merged.push(initial);
+            }
+          });
+          return merged;
+        }
       }
     } catch (e) {
       console.error('Failed to load design prompts from localStorage:', e);
@@ -329,6 +347,8 @@ export default function App() {
   });
   const [activeTagIndex, setActiveTagIndex] = useState<number | null>(null);
   const [activeTagValue, setActiveTagValue] = useState<string>('');
+  const [isTagCopied, setIsTagCopied] = useState<boolean>(false);
+  const [lastCopiedTagValue, setLastCopiedTagValue] = useState<string | null>(null);
   const [initialPromptText, setInitialPromptText] = useState<string>(() => {
     const textToLoad = INITIAL_PROMPTS[0].canvasTemplate ?? INITIAL_PROMPTS[0].promptText;
     return textToLoad.replace(/\{\{([^}]+)\}\}/g, (match, inner) => {
@@ -883,8 +903,60 @@ export default function App() {
     }
   };
 
+  const shouldShowCopyButton = () => {
+    if (activeTagIndex === null) return false;
+    const parts = canvasText.split(/(\[.*?\]|\{.*?\})/g);
+    if (activeTagIndex <= 0 || activeTagIndex >= parts.length) return false;
+
+    // 1. Check the plain text immediately preceding this tag
+    const precedingText = parts[activeTagIndex - 1];
+    if (precedingText) {
+      if (
+        precedingText.includes('페이지') ||
+        precedingText.includes('내용') ||
+        precedingText.includes('표지') ||
+        precedingText.includes('배경') ||
+        precedingText.includes('page') ||
+        precedingText.includes('content')
+      ) {
+        return true;
+      }
+    }
+
+    // 2. Scan backwards to find the nearest section header in brackets, e.g. [분량] or [무드 & 레퍼런스]
+    for (let i = activeTagIndex - 1; i >= 0; i--) {
+      const part = parts[i];
+      if (part.startsWith('[') && part.endsWith(']')) {
+        const sectionName = part.slice(1, -1);
+        if (
+          sectionName.includes('페이지') ||
+          sectionName.includes('내용') ||
+          sectionName.includes('분량') ||
+          sectionName.includes('page') ||
+          sectionName.includes('volume')
+        ) {
+          return true;
+        }
+        break; // Stop at the nearest section header to avoid bleed-through
+      }
+    }
+
+    return false;
+  };
+
+  const getTargetPromptToCopy = () => {
+    if (activeTagIndex !== null && shouldShowCopyButton()) {
+      return activeTagValue;
+    }
+    if (lastCopiedTagValue) {
+      return lastCopiedTagValue;
+    }
+    return assembledMegaPrompt;
+  };
+
   const handleActiveDomainChange = (domain: 'TEXT' | 'DESIGN') => {
     setActiveDomain(domain);
+    setLastCopiedTagValue(null);
     const list = domain === 'TEXT' ? prompts : designPrompts;
     if (list && list.length > 0) {
       const template = list[0];
@@ -927,6 +999,7 @@ export default function App() {
   // Switch to State 2 inside the Wizard from a template click
   const selectTemplateAndGoToCanvas = (template: PromptTemplate) => {
     setSelectedTemplate(template);
+    setLastCopiedTagValue(null);
     const textToLoad = template.canvasTemplate ?? template.promptText;
     const normalizedText = textToLoad.replace(/\{\{([^}]+)\}\}/g, (match, inner) => {
       const parts = inner.split(':');
@@ -2016,10 +2089,15 @@ export default function App() {
                             target="_blank"
                             rel="noopener noreferrer"
                             onClick={(e) => {
-                              navigator.clipboard.writeText(assembledMegaPrompt);
+                              const textToCopy = getTargetPromptToCopy();
+                              navigator.clipboard.writeText(textToCopy);
                               triggerParticles(['🤖', '📋', '✨'], e.clientX, e.clientY);
                               setAnalyticsCopyVolume(prev => prev + 1);
-                              triggerToast('🤖 ChatGPT가 새 창에서 열렸습니다. 병합 완료된 메가 프롬프트가 클립보드로 자동 탑재되었습니다!');
+                              if (textToCopy !== assembledMegaPrompt) {
+                                triggerToast('🤖 ChatGPT가 새 창에서 열렸습니다. 선택한 [개별 페이지 프롬프트]가 클립보드로 자동 탑재되었습니다!');
+                              } else {
+                                triggerToast('🤖 ChatGPT가 새 창에서 열렸습니다. 병합 완료된 메가 프롬프트가 클립보드로 자동 탑재되었습니다!');
+                              }
                             }}
                             className="h-8 px-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-150 border border-slate-700/80 hover:border-slate-500 text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer shadow-xs active:scale-95"
                             title="ChatGPT 웹사이트를 새 탭에서 열기"
@@ -2032,10 +2110,15 @@ export default function App() {
                             target="_blank"
                             rel="noopener noreferrer"
                             onClick={(e) => {
-                              navigator.clipboard.writeText(assembledMegaPrompt);
+                              const textToCopy = getTargetPromptToCopy();
+                              navigator.clipboard.writeText(textToCopy);
                               triggerParticles(['✨', '📋', '🔮'], e.clientX, e.clientY);
                               setAnalyticsCopyVolume(prev => prev + 1);
-                              triggerToast('✨ Google Gemini가 새 창에서 열렸습니다. 병합 완료된 메가 프롬프트가 클립보드로 자동 탑재되었습니다!');
+                              if (textToCopy !== assembledMegaPrompt) {
+                                triggerToast('✨ Google Gemini가 새 창에서 열렸습니다. 선택한 [개별 페이지 프롬프트]가 클립보드로 자동 탑재되었습니다!');
+                              } else {
+                                triggerToast('✨ Google Gemini가 새 창에서 열렸습니다. 병합 완료된 메가 프롬프트가 클립보드로 자동 탑재되었습니다!');
+                              }
                             }}
                             className="h-8 px-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-150 border border-slate-700/80 hover:border-slate-500 text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer shadow-xs active:scale-95"
                             title="Gemini 웹사이트를 새 탭에서 열기"
@@ -2048,10 +2131,15 @@ export default function App() {
                             target="_blank"
                             rel="noopener noreferrer"
                             onClick={(e) => {
-                              navigator.clipboard.writeText(assembledMegaPrompt);
+                              const textToCopy = getTargetPromptToCopy();
+                              navigator.clipboard.writeText(textToCopy);
                               triggerParticles(['🎨', '📋', '💖'], e.clientX, e.clientY);
                               setAnalyticsCopyVolume(prev => prev + 1);
-                              triggerToast('🎨 Canva 디자인 스튜디오가 새 창에서 열렸습니다. 병합 완료된 메가 프롬프트가 클립보드로 자동 탑재되었습니다!');
+                              if (textToCopy !== assembledMegaPrompt) {
+                                triggerToast('🎨 Canva 디자인 스튜디오가 새 창에서 열렸습니다. 선택한 [개별 페이지 프롬프트]가 클립보드로 자동 탑재되었습니다!');
+                              } else {
+                                triggerToast('🎨 Canva 디자인 스튜디오가 새 창에서 열렸습니다. 병합 완료된 메가 프롬프트가 클립보드로 자동 탑재되었습니다!');
+                              }
                             }}
                             className="h-8 px-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-150 border border-slate-700/80 hover:border-slate-500 text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer shadow-xs active:scale-95"
                             title="Canva 웹사이트를 새 탭에서 열기"
@@ -2094,6 +2182,7 @@ export default function App() {
                                 setCanvasText(initialPromptText);
                                 setVariableValues(variableDefaults);
                                 setActiveTagIndex(null);
+                                setLastCopiedTagValue(null);
                                 triggerToast('↺ 프롬프트 텍스트 및 모든 스마트 태그가 최초 원본 상태로 복구되었습니다.');
                               }}
                               className="h-8 px-2.5 bg-white hover:bg-slate-100 text-slate-700 hover:text-slate-900 rounded-xl text-[11px] font-black border border-slate-250 shadow-2xs transition-all flex items-center gap-1.5 cursor-pointer"
@@ -2107,6 +2196,7 @@ export default function App() {
                               type="button"
                               onClick={(e) => {
                                 navigator.clipboard.writeText(assembledMegaPrompt);
+                                setLastCopiedTagValue(null);
                                 triggerParticles(['🚀', '✨', '⚡', '💖'], e.clientX, e.clientY);
                                 setAnalyticsCopyVolume(prev => prev + 1);
                                 triggerToast('📋 메가 프롬프트가 클립보드로 전체 복사 완료되었습니다!');
@@ -2282,6 +2372,25 @@ export default function App() {
                                   >
                                     적용
                                   </button>
+                                  {shouldShowCopyButton() && (
+                                    <button
+                                      type="button"
+                                      onMouseDown={(e) => e.preventDefault()}
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        navigator.clipboard.writeText(activeTagValue);
+                                        setIsTagCopied(true);
+                                        setLastCopiedTagValue(activeTagValue);
+                                        triggerToast('📄 선택한 태그 프롬프트가 클립보드에 복사되었습니다.');
+                                        setTimeout(() => {
+                                          setIsTagCopied(false);
+                                        }, 1500);
+                                      }}
+                                      className="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 text-xs font-bold px-4 py-2 rounded-xl transition-all cursor-pointer whitespace-nowrap flex items-center gap-1 shadow-sm active:scale-95"
+                                    >
+                                      <span>📄</span> {isTagCopied ? '복사 완료!' : '프롬프트 복사'}
+                                    </button>
+                                  )}
                                 </div>
                               </motion.div>
                             )}
