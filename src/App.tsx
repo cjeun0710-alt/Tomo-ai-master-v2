@@ -396,7 +396,7 @@ export default function App() {
   } | null>(null);
 
   // Teacher Mode Filter States (Active & High density)
-  const [selectedMainCategory, setSelectedMainCategory] = useState<string>('반운영');
+  const [selectedMainCategory, setSelectedMainCategory] = useState<string>('원운영');
   const [selectedSubCategory, setSelectedSubCategory] = useState<string>('전체');
 
   // --- Sub Categories Map with localStorage Persistence and Sync ---
@@ -916,7 +916,7 @@ export default function App() {
     }
 
     if (domain === 'TEXT') {
-      setSelectedMainCategory('반운영');
+      setSelectedMainCategory('원운영');
       setSelectedSubCategory('전체');
     } else {
       setSelectedMainCategory('학부모 교육');
