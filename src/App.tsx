@@ -1337,7 +1337,7 @@ export default function App() {
                 반갑습니다! 👋
               </h2>
               <p className="text-sm text-slate-500 font-medium leading-relaxed">
-                시스템 시연을 위해 계정으로 로그인해 주세요.
+                발급받은 계정으로 로그인해 주세요.
               </p>
             </div>
 
@@ -5519,7 +5519,7 @@ export default function App() {
                   <button
                     type="button"
                     onClick={confirmAdminDelete}
-                    className="flex-1 py-3 bg-rose-605 hover:bg-rose-700 text-white rounded-xl text-xs font-black transition-all cursor-pointer text-center shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
+                    className="flex-1 py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-black transition-all cursor-pointer text-center shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
                   >
                     예, 영구 삭제합니다
                   </button>
