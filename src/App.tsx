@@ -208,37 +208,34 @@ export default function App() {
 
   // --- Auto-sync custom templates back to codebase (Development only) ---
   React.useEffect(() => {
-    const isDevEnv = import.meta.env.DEV;
-    if (isDevEnv) {
-      const syncTimeout = setTimeout(() => {
-        fetch('/api/sync-to-codebase', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            prompts,
-            designPrompts,
-          }),
-        })
-        .then(async (res) => {
-          if (!res.ok) {
-            throw new Error(`Server returned status ${res.status}`);
-          }
-          const text = await res.text();
-          return text ? JSON.parse(text) : {};
-        })
-        .then(data => {
-          if (data.success) {
-            console.log('Successfully synced custom templates to local file system codebase!');
-          }
-        })
-        .catch(err => {
-          console.warn('Auto-sync templates info:', err.message || err);
-        });
-      }, 1000); // Debounce by 1 second
-      return () => clearTimeout(syncTimeout);
-    }
+    const syncTimeout = setTimeout(() => {
+      fetch('/api/sync-to-codebase', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          prompts,
+          designPrompts,
+        }),
+      })
+      .then(async (res) => {
+        if (!res.ok) {
+          throw new Error(`Server returned status ${res.status}`);
+        }
+        const text = await res.text();
+        return text ? JSON.parse(text) : {};
+      })
+      .then(data => {
+        if (data.success) {
+          console.log('Successfully synced custom templates to local file system codebase!');
+        }
+      })
+      .catch(err => {
+        console.warn('Auto-sync templates info:', err.message || err);
+      });
+    }, 200); // Debounce by 200ms for instant feedback
+    return () => clearTimeout(syncTimeout);
   }, [prompts, designPrompts]);
 
   const [teachers, setTeachers] = useState<Teacher[]>(INITIAL_TEACHERS);

@@ -36,7 +36,7 @@ export default defineConfig(() => {
                 const parsed = JSON.parse(body);
                 const { prompts, designPrompts } = parsed;
                 if (Array.isArray(prompts) && Array.isArray(designPrompts)) {
-                  const filePath = path.resolve(__dirname, 'src/custom_templates.ts');
+                  const filePath = path.resolve(process.cwd(), 'src/custom_templates.ts');
                   const content = `import { PromptTemplate } from './types';
 
 export const CUSTOM_PROMPTS: PromptTemplate[] = ${JSON.stringify(prompts, null, 2)};
