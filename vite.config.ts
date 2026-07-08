@@ -21,13 +21,18 @@ export default defineConfig(() => {
       watch: process.env.DISABLE_HMR === 'true' ? null : {},
       configureServer(server) {
         server.middlewares.use((req, res, next) => {
-          if (req.url === '/api/sync-to-codebase' && req.method === 'POST') {
+          if (req.url && req.url.startsWith('/api/sync-to-codebase') && req.method === 'POST') {
             let body = '';
             req.on('data', chunk => {
               body += chunk.toString();
             });
             req.on('end', () => {
               try {
+                if (!body) {
+                  res.writeHead(400, { 'Content-Type': 'application/json' });
+                  res.end(JSON.stringify({ error: 'Empty body' }));
+                  return;
+                }
                 const parsed = JSON.parse(body);
                 const { prompts, designPrompts } = parsed;
                 if (Array.isArray(prompts) && Array.isArray(designPrompts)) {
