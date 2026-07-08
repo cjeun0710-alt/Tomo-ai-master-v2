@@ -148,72 +148,62 @@ export default function App() {
   });
 
   // --- Common Prompt & Teacher States ---
-  const [prompts, setPrompts] = useState<PromptTemplate[]>(() => {
+  const [prompts, _setPrompts] = useState<PromptTemplate[]>(() => {
     try {
       const saved = localStorage.getItem('tomo_prompts');
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed)) {
-          const merged = [...parsed];
-          INITIAL_PROMPTS.forEach(initial => {
-            if (!merged.some(m => m.id === initial.id)) {
-              merged.push(initial);
-            }
-          });
-          return merged;
+          return parsed;
         }
       }
     } catch (e) {
       console.error('Failed to load prompts from localStorage:', e);
     }
-    return INITIAL_PROMPTS;
+    return [];
   });
 
-  useEffect(() => {
-    try {
-      localStorage.setItem('tomo_prompts', JSON.stringify(prompts));
-    } catch (e) {
-      console.error('Failed to save prompts to localStorage:', e);
-    }
-  }, [prompts]);
+  const setPrompts = React.useCallback((updater: any) => {
+    _setPrompts(prev => {
+      const next = typeof updater === 'function' ? updater(prev) : updater;
+      try {
+        localStorage.setItem('tomo_prompts', JSON.stringify(next));
+      } catch (e) {
+        console.error('Failed to save prompts to localStorage:', e);
+      }
+      return next;
+    });
+  }, []);
 
   // --- Active Domain State ('TEXT' for Writing, 'DESIGN' for Design) ---
   const [activeDomain, setActiveDomain] = useState<'TEXT' | 'DESIGN'>('TEXT');
 
-  const [designPrompts, setDesignPrompts] = useState<PromptTemplate[]>(() => {
+  const [designPrompts, _setDesignPrompts] = useState<PromptTemplate[]>(() => {
     try {
       const saved = localStorage.getItem('tomo_design_prompts');
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed)) {
-          const updated = parsed.map((item: any) => {
-            const initial = INITIAL_DESIGN_PROMPTS.find(p => p.id === item.id);
-            if (initial) {
-              return { ...item, mainCategory: initial.mainCategory, category: initial.category };
-            }
-            return item;
-          });
-          INITIAL_DESIGN_PROMPTS.forEach(initial => {
-            if (!updated.some((m: any) => m.id === initial.id)) {
-              updated.push(initial);
-            }
-          });
-          return updated;
+          return parsed;
         }
       }
     } catch (e) {
       console.error('Failed to load design prompts from localStorage:', e);
     }
-    return INITIAL_DESIGN_PROMPTS;
+    return [];
   });
 
-  useEffect(() => {
-    try {
-      localStorage.setItem('tomo_design_prompts', JSON.stringify(designPrompts));
-    } catch (e) {
-      console.error('Failed to save design prompts to localStorage:', e);
-    }
-  }, [designPrompts]);
+  const setDesignPrompts = React.useCallback((updater: any) => {
+    _setDesignPrompts(prev => {
+      const next = typeof updater === 'function' ? updater(prev) : updater;
+      try {
+        localStorage.setItem('tomo_design_prompts', JSON.stringify(next));
+      } catch (e) {
+        console.error('Failed to save design prompts to localStorage:', e);
+      }
+      return next;
+    });
+  }, []);
 
   const [teachers, setTeachers] = useState<Teacher[]>(INITIAL_TEACHERS);
   const [showToast, setShowToast] = useState<string | null>(null);
@@ -224,10 +214,32 @@ export default function App() {
   const [sharedFilter, setSharedFilter] = useState<'전체' | '공식 서식' | '우수 사례'>('전체');
   const [isDraggingCard, setIsDraggingCard] = useState<boolean>(false);
 
-  const [savedUserPrompts, setSavedUserPrompts] = useState<PromptTemplate[]>([
-    INITIAL_PROMPTS[0],
-    INITIAL_PROMPTS[5]
-  ]);
+  const [savedUserPrompts, _setSavedUserPrompts] = useState<PromptTemplate[]>(() => {
+    try {
+      const saved = localStorage.getItem('tomo_saved_user_prompts');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          return parsed;
+        }
+      }
+    } catch (e) {
+      console.error('Failed to load savedUserPrompts from localStorage:', e);
+    }
+    return [];
+  });
+
+  const setSavedUserPrompts = React.useCallback((updater: any) => {
+    _setSavedUserPrompts(prev => {
+      const next = typeof updater === 'function' ? updater(prev) : updater;
+      try {
+        localStorage.setItem('tomo_saved_user_prompts', JSON.stringify(next));
+      } catch (e) {
+        console.error('Failed to save savedUserPrompts to localStorage:', e);
+      }
+      return next;
+    });
+  }, []);
 
   const [sharedRepositoryPrompts, setSharedRepositoryPrompts] = useState<{
     id: string;
@@ -326,7 +338,9 @@ export default function App() {
     }
   };
 
-  const [selectedTemplate, setSelectedTemplate] = useState<PromptTemplate | null>(INITIAL_PROMPTS[0]);
+  const [selectedTemplate, setSelectedTemplate] = useState<PromptTemplate | null>(() => {
+    return prompts.length > 0 ? prompts[0] : null;
+  });
 
   // Unified Smart Mega Canvas Interactive States
   const [templateVersions, setTemplateVersions] = useState<Record<string, number>>({});
@@ -345,7 +359,9 @@ export default function App() {
   
   // Custom edit prompt state in Step 2 as Single Source of Truth
   const [canvasText, setCanvasText] = useState<string>(() => {
-    const textToLoad = INITIAL_PROMPTS[0].canvasTemplate ?? INITIAL_PROMPTS[0].promptText;
+    const defaultTemplate = prompts.length > 0 ? prompts[0] : null;
+    if (!defaultTemplate) return '';
+    const textToLoad = defaultTemplate.canvasTemplate ?? defaultTemplate.promptText;
     return textToLoad.replace(/\{\{([^}]+)\}\}/g, (match, inner) => {
       const parts = inner.split(':');
       return `{${parts[1] ? parts[1].trim() : parts[0].trim()}}`;
@@ -356,7 +372,9 @@ export default function App() {
   const [isTagCopied, setIsTagCopied] = useState<boolean>(false);
   const [lastCopiedTagValue, setLastCopiedTagValue] = useState<string | null>(null);
   const [initialPromptText, setInitialPromptText] = useState<string>(() => {
-    const textToLoad = INITIAL_PROMPTS[0].canvasTemplate ?? INITIAL_PROMPTS[0].promptText;
+    const defaultTemplate = prompts.length > 0 ? prompts[0] : null;
+    if (!defaultTemplate) return '';
+    const textToLoad = defaultTemplate.canvasTemplate ?? defaultTemplate.promptText;
     return textToLoad.replace(/\{\{([^}]+)\}\}/g, (match, inner) => {
       const parts = inner.split(':');
       return `{${parts[1] ? parts[1].trim() : parts[0].trim()}}`;
