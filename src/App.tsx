@@ -339,6 +339,12 @@ export default function App() {
   };
 
   const [selectedTemplate, setSelectedTemplate] = useState<PromptTemplate | null>(() => {
+    // Prefer user-created prompts (id contains dash) in teacher mode
+    const isTeacher = !isAdminMode;
+    if (isTeacher) {
+      const userCreated = prompts.filter(p => p.id.includes('-'));
+      if (userCreated.length > 0) return userCreated[0];
+    }
     return prompts.length > 0 ? prompts[0] : null;
   });
 
@@ -981,8 +987,12 @@ export default function App() {
     setActiveDomain(domain);
     setLastCopiedTagValue(null);
     const list = domain === 'TEXT' ? prompts : designPrompts;
-    if (list && list.length > 0) {
-      const template = list[0];
+    // Prefer user-created templates (id contains dash) in teacher mode
+    const filteredList = !isAdminMode ? list.filter(p => p.id.includes('-')) : list;
+    const finalTemplateList = filteredList.length > 0 ? filteredList : list;
+    
+    if (finalTemplateList && finalTemplateList.length > 0) {
+      const template = finalTemplateList[0];
       setSelectedTemplate(template);
       const textToLoad = template.canvasTemplate ?? template.promptText;
       const normalizedText = textToLoad.replace(/\{\{([^}]+)\}\}/g, (match, inner) => {
@@ -1928,7 +1938,12 @@ export default function App() {
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5" id="teacher-masonry-view">
                     {(() => {
                       // 1. Get all active prompts that are not hidden
-                      const allPrompts = activePrompts.filter(p => !p.isHidden);
+                      let allPrompts = activePrompts.filter(p => !p.isHidden);
+                      
+                      // Only display user-created templates in teacher (deployed) mode
+                      if (!isAdminMode) {
+                        allPrompts = allPrompts.filter(p => p.id.includes('-'));
+                      }
                       
                       // 3. Print log of all prompts to the console as requested by developers
                       console.log(allPrompts);
