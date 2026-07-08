@@ -2725,7 +2725,8 @@ export default function App() {
                     <span>데이터 분석</span>
                   </button>
 
-                  {/* Menu Option 4: 배포 사이트 동기화 */}
+                  {/* Menu Option 4: 배포 사이트 동기화 (Hidden as requested) */}
+                  {/*
                   <button
                     id="admin-nav-sync"
                     type="button"
@@ -2742,6 +2743,7 @@ export default function App() {
                     <Cloud className="w-3.5 h-3.5" />
                     <span>배포 사이트 동기화</span>
                   </button>
+                  */}
 
                 </div>
 
