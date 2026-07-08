@@ -43,7 +43,8 @@ import {
   MoreVertical,
   LogOut,
   Palette,
-  Lock
+  Lock,
+  Cloud
 } from 'lucide-react';
 import { INITIAL_PROMPTS, INITIAL_DESIGN_PROMPTS, INITIAL_TEACHERS, CATEGORIES, TAGS } from './data';
 import { PromptTemplate, Teacher } from './types';
@@ -204,6 +205,34 @@ export default function App() {
       return next;
     });
   }, []);
+
+  // --- Auto-sync custom templates back to codebase (Development only) ---
+  React.useEffect(() => {
+    const hostname = window.location.hostname;
+    const isDevEnv = hostname === 'localhost' || hostname === '127.0.0.1' || hostname.includes('ais-dev') || hostname.includes('run.app');
+    if (isDevEnv) {
+      const syncTimeout = setTimeout(() => {
+        fetch('/api/sync-to-codebase', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            prompts,
+            designPrompts,
+          }),
+        })
+        .then(res => res.json())
+        .then(data => {
+          if (data.success) {
+            console.log('Successfully synced custom templates to local file system codebase!');
+          }
+        })
+        .catch(err => console.error('Auto-sync templates failed:', err));
+      }, 1000); // Debounce by 1 second
+      return () => clearTimeout(syncTimeout);
+    }
+  }, [prompts, designPrompts]);
 
   const [teachers, setTeachers] = useState<Teacher[]>(INITIAL_TEACHERS);
   const [showToast, setShowToast] = useState<string | null>(null);
@@ -500,7 +529,7 @@ export default function App() {
   const [editingSubValue, setEditingSubValue] = useState<string>('');
 
   // --- Admin Mode Navigation States ---
-  const [adminTab, setAdminTab] = useState<'cms' | 'folders' | 'analytics'>('cms');
+  const [adminTab, setAdminTab] = useState<'cms' | 'folders' | 'analytics' | 'sync'>('cms');
   
   // --- Admin CMS View Filters ---
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -2696,6 +2725,24 @@ export default function App() {
                     <span>데이터 분석</span>
                   </button>
 
+                  {/* Menu Option 4: 배포 사이트 동기화 */}
+                  <button
+                    id="admin-nav-sync"
+                    type="button"
+                    onClick={() => {
+                      setAdminTab('sync');
+                      triggerToast('☁️ 개발기와 배포기를 완전히 일치시키는 동기화 패널을 호출했습니다.');
+                    }}
+                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                      adminTab === 'sync'
+                        ? 'bg-[#1e40af] text-white shadow-md font-black'
+                        : 'text-slate-400 hover:text-white hover:bg-white/5'
+                    }`}
+                  >
+                    <Cloud className="w-3.5 h-3.5" />
+                    <span>배포 사이트 동기화</span>
+                  </button>
+
                 </div>
 
 
@@ -4029,6 +4076,163 @@ export default function App() {
                   </div>
                 );
               })()}
+
+              {adminTab === 'sync' && (
+                <div className="space-y-6">
+                  {/* Top Header Row */}
+                  <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-slate-200 pb-4">
+                    <div>
+                      <h2 className="sys-heading-main text-[#001C3D] text-lg font-black">
+                        배포 사이트 동기화 & 백업 관리자 (Deploy & Backup Control Center)
+                      </h2>
+                      <p className="text-xs text-slate-500 mt-1">
+                        개발용 사이트에서 작성하신 모든 템플릿(글쓰기/디자인)을 실제 운영·배포 사이트에도 100% 반영되도록 동기화합니다.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Info Panel explaining the automatic codebase-level sync */}
+                  <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm space-y-4">
+                    <div className="flex items-start gap-4">
+                      <div className="p-3 bg-blue-50 text-blue-600 rounded-2xl shrink-0">
+                        <Cloud className="w-6 h-6" />
+                      </div>
+                      <div className="space-y-1">
+                        <h3 className="text-sm font-black text-[#001C3D]">실시간 코드베이스 연동 동기화 시스템</h3>
+                        <p className="text-xs text-slate-500 leading-relaxed">
+                          현재 사이트에서 템플릿을 **추가, 수정 또는 삭제**하면 교사용/관리자용 템플릿들이 로컬 파일시스템의 <code>src/custom_templates.ts</code> 파일에 실시간으로 자동 동기화되어 기록됩니다.
+                        </p>
+                        <p className="text-xs text-slate-500 leading-relaxed">
+                          이후 배포를 수행하면 (Vite 빌드 시) 이 동기화된 템플릿 파일들이 JS 코드와 함께 완벽히 배킹(Baking)되어 배포되기 때문에, **배포 사이트에서도 빈 화면이 아닌 현재 개발 환경과 100% 동일한 템플릿 목록이 최초 방문자 모두에게 즉시 제공됩니다.**
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="border-t border-slate-100 pt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* Stats cards */}
+                      <div className="bg-slate-50 p-4 rounded-2xl flex justify-between items-center">
+                        <div>
+                          <p className="text-[10px] font-bold text-slate-400">동기화 대기 중인 프롬프트 템플릿</p>
+                          <p className="text-lg font-black text-[#001C3D] mt-0.5">{prompts.length} 개</p>
+                        </div>
+                        <span className="text-xs bg-rose-100 text-rose-700 px-2.5 py-1 rounded-full font-bold">텍스트 CMS</span>
+                      </div>
+
+                      <div className="bg-slate-50 p-4 rounded-2xl flex justify-between items-center">
+                        <div>
+                          <p className="text-[10px] font-bold text-slate-400">동기화 대기 중인 디자인 템플릿</p>
+                          <p className="text-lg font-black text-[#001C3D] mt-0.5">{designPrompts.length} 개</p>
+                        </div>
+                        <span className="text-xs bg-emerald-100 text-emerald-700 px-2.5 py-1 rounded-full font-bold">디자인 팩토리</span>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-3 pt-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          fetch('/api/sync-to-codebase', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ prompts, designPrompts }),
+                          })
+                          .then(res => res.json())
+                          .then(data => {
+                            if (data.success) {
+                              triggerToast('☁️ 코드베이스 즉시 강제 동기화가 성공적으로 완료되었습니다!');
+                            } else {
+                              triggerToast('❌ 동기화 중 오류가 발생했습니다.');
+                            }
+                          })
+                          .catch(() => triggerToast('❌ 서버 연결에 실패했습니다 (배포 사이트에서는 수동 JSON 백업을 권장합니다).'));
+                        }}
+                        className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm flex items-center gap-1.5 cursor-pointer"
+                      >
+                        <FolderSync className="w-4 h-4" />
+                        <span>[코드베이스 즉시 동기화 실행]</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Manual Backup / Import Section (For cross-domain localStorage migration) */}
+                  <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm space-y-6">
+                    <div>
+                      <h3 className="text-sm font-black text-[#001C3D] flex items-center gap-2">
+                        <Save className="w-4 h-4 text-slate-500" />
+                        수동 템플릿 백업 & 일괄 이관 복원 (JSON Backup & Migrate)
+                      </h3>
+                      <p className="text-xs text-slate-500 mt-1">
+                        개발계와 배포계의 브라우저 로컬 스토리지(LocalStorage)를 수동으로 마이그레이션하거나 백업할 때 활용할 수 있습니다.
+                      </p>
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                      {/* Export Block */}
+                      <div className="space-y-3">
+                        <div className="flex justify-between items-center">
+                          <h4 className="text-[11px] font-bold text-slate-700">1. 현재 템플릿 데이터 내보내기 (Export)</h4>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const exportData = JSON.stringify({ prompts, designPrompts }, null, 2);
+                              navigator.clipboard.writeText(exportData);
+                              triggerToast('📋 백업 데이터가 클립보드에 복사되었습니다!');
+                            }}
+                            className="px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-[10px] font-bold transition-all flex items-center gap-1 cursor-pointer"
+                          >
+                            <Copy className="w-3 h-3" />
+                            <span>데이터 복사</span>
+                          </button>
+                        </div>
+                        <textarea
+                          readOnly
+                          value={JSON.stringify({ prompts, designPrompts }, null, 2)}
+                          className="w-full h-44 p-3 bg-slate-50 border border-slate-250 rounded-xl text-[10px] font-mono text-slate-600 focus:outline-none"
+                        />
+                      </div>
+
+                      {/* Import Block */}
+                      <div className="space-y-3">
+                        <div className="flex justify-between items-center">
+                          <h4 className="text-[11px] font-bold text-slate-700">2. 외부 백업 데이터 일괄 복원하기 (Import)</h4>
+                        </div>
+                        <textarea
+                          placeholder="복사한 백업 JSON 데이터를 여기에 붙여넣으세요..."
+                          id="import-json-textarea"
+                          className="w-full h-32 p-3 bg-white border border-slate-200 focus:border-blue-500 rounded-xl text-[10px] font-mono text-slate-600 focus:outline-none"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const textarea = document.getElementById('import-json-textarea') as HTMLTextAreaElement;
+                            if (!textarea || !textarea.value.trim()) {
+                              triggerToast('⚠️ 입력창에 유효한 백업 데이터를 먼저 입력하세요.');
+                              return;
+                            }
+                            try {
+                              const parsed = JSON.parse(textarea.value);
+                              if (parsed.prompts && Array.isArray(parsed.prompts)) {
+                                setPrompts(parsed.prompts);
+                              }
+                              if (parsed.designPrompts && Array.isArray(parsed.designPrompts)) {
+                                setDesignPrompts(parsed.designPrompts);
+                              }
+                              triggerToast('🎉 템플릿 백업 데이터가 로컬 스토리지에 즉시 복원·적용되었습니다!');
+                              textarea.value = '';
+                            } catch (e) {
+                              triggerToast('❌ 올바르지 않은 JSON 데이터 형식이거나 백업 구조에 오류가 있습니다.');
+                            }
+                          }}
+                          className="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition-all cursor-pointer shadow-sm flex justify-center items-center gap-1"
+                        >
+                          <Download className="w-3.5 h-3.5 text-blue-400" />
+                          <span>[가져온 데이터로 로컬 스토리지 덮어쓰기 복원]</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
 
             </main>
           </div>

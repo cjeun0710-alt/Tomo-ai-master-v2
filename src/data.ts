@@ -1,6 +1,7 @@
 import { PromptTemplate, Teacher } from './types';
+import { CUSTOM_PROMPTS, CUSTOM_DESIGN_PROMPTS } from './custom_templates';
 
-export const INITIAL_PROMPTS: PromptTemplate[] = [
+const DEFAULT_PROMPTS: PromptTemplate[] = [
   {
     id: 'p1',
     title: '만 3세 주간 가정통신문 작성기',
@@ -113,7 +114,9 @@ export const INITIAL_PROMPTS: PromptTemplate[] = [
   }
 ];
 
-export const INITIAL_DESIGN_PROMPTS: PromptTemplate[] = [
+export const INITIAL_PROMPTS: PromptTemplate[] = CUSTOM_PROMPTS.length > 0 ? CUSTOM_PROMPTS : DEFAULT_PROMPTS;
+
+const DEFAULT_DESIGN_PROMPTS: PromptTemplate[] = [
   {
     id: 'dp1',
     title: '가을 학부모 오리엔테이션 Canva 템플릿',
@@ -163,6 +166,8 @@ export const INITIAL_DESIGN_PROMPTS: PromptTemplate[] = [
     createdAt: '2026-06-25'
   }
 ];
+
+export const INITIAL_DESIGN_PROMPTS: PromptTemplate[] = CUSTOM_DESIGN_PROMPTS.length > 0 ? CUSTOM_DESIGN_PROMPTS : DEFAULT_DESIGN_PROMPTS;
 
 export const INITIAL_TEACHERS: Teacher[] = [
   {
