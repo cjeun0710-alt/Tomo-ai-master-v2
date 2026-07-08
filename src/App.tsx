@@ -186,13 +186,19 @@ export default function App() {
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed)) {
-          const merged = [...parsed];
+          const updated = parsed.map((item: any) => {
+            const initial = INITIAL_DESIGN_PROMPTS.find(p => p.id === item.id);
+            if (initial) {
+              return { ...item, mainCategory: initial.mainCategory, category: initial.category };
+            }
+            return item;
+          });
           INITIAL_DESIGN_PROMPTS.forEach(initial => {
-            if (!merged.some(m => m.id === initial.id)) {
-              merged.push(initial);
+            if (!updated.some((m: any) => m.id === initial.id)) {
+              updated.push(initial);
             }
           });
-          return merged;
+          return updated;
         }
       }
     } catch (e) {
@@ -439,10 +445,11 @@ export default function App() {
   });
 
   const designSubCategoriesMap = useMemo<Record<string, string[]>>(() => ({
-    '행사/이벤트': ['PPT레이아웃', 'Canva', '카드뉴스', '배너', '오리엔테이션'],
-    '학부모 교육': ['PPT레이아웃', 'Canva', '카드뉴스', '배너', '오리엔테이션'],
-    '놀이/수업 지원': ['PPT레이아웃', 'Canva', '카드뉴스', '배너', '오리엔테이션'],
-    '홍보/SNS': ['PPT레이아웃', 'Canva', '카드뉴스', '배너', '오리엔테이션']
+    '원운영': ['Canva', '카드뉴스', '배너', '행사/이벤트', '오리엔테이션', '학부모 교육'],
+    '반운영': ['Canva', '카드뉴스', '배너', '가정통신문'],
+    '관찰/평가': [],
+    '기타': ['디자인', '인스타그램', '홍보/안내'],
+    '지원자료': ['PPT레이아웃', '교구 제작']
   }), []);
 
   const currentSubCategoriesMap = useMemo(() => {
@@ -450,10 +457,8 @@ export default function App() {
   }, [activeDomain, subCategoriesMap, designSubCategoriesMap]);
 
   const currentMainCategories = useMemo(() => {
-    return activeDomain === 'TEXT'
-      ? ['원운영', '반운영', '관찰/평가', '기타', '지원자료']
-      : ['행사/이벤트', '학부모 교육', '놀이/수업 지원', '홍보/SNS'];
-  }, [activeDomain]);
+    return ['원운영', '반운영', '관찰/평가', '기타', '지원자료'];
+  }, []);
 
   const updateSubCategoriesMap = (newMap: Record<string, string[]>) => {
     setSubCategoriesMap(newMap);
@@ -987,13 +992,8 @@ export default function App() {
       setVariableDefaults({});
     }
 
-    if (domain === 'TEXT') {
-      setSelectedMainCategory('원운영');
-      setSelectedSubCategory('전체');
-    } else {
-      setSelectedMainCategory('학부모 교육');
-      setSelectedSubCategory('전체');
-    }
+    setSelectedMainCategory('원운영');
+    setSelectedSubCategory('전체');
   };
 
   // Switch to State 2 inside the Wizard from a template click
@@ -1873,7 +1873,7 @@ export default function App() {
                       >
                         #전체
                       </button>
-                      {(subCategoriesMap[selectedMainCategory] || []).map(sub => (
+                      {(currentSubCategoriesMap[selectedMainCategory] || []).map(sub => (
                         <button
                           key={sub}
                           type="button"
@@ -2773,7 +2773,7 @@ export default function App() {
                       >
                         #전체
                       </button>
-                      {(subCategoriesMap[selectedMainCategory] || []).map(sub => (
+                      {(currentSubCategoriesMap[selectedMainCategory] || []).map(sub => (
                         <button
                           key={sub}
                           type="button"
