@@ -160,7 +160,7 @@ export default function App() {
     } catch (e) {
       console.error('Failed to load prompts from localStorage:', e);
     }
-    return [];
+    return INITIAL_PROMPTS;
   });
 
   const setPrompts = React.useCallback((updater: any) => {
@@ -190,7 +190,7 @@ export default function App() {
     } catch (e) {
       console.error('Failed to load design prompts from localStorage:', e);
     }
-    return [];
+    return INITIAL_DESIGN_PROMPTS;
   });
 
   const setDesignPrompts = React.useCallback((updater: any) => {
