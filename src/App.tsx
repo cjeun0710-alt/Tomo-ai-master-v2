@@ -1244,27 +1244,42 @@ export default function App() {
 
   // Filter computation for Admin Grid
   const filteredAdminPrompts = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    const hasSearch = query.length > 0;
+
     const filtered = activePrompts.filter(p => {
-      const matchSearch =
-        p.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        p.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        p.promptText.toLowerCase().includes(searchQuery.toLowerCase());
+      // 1. matchSearch: Global search matching title, description, category (sub-category), promptText, tags
+      let matchSearch = true;
+      if (hasSearch) {
+        matchSearch =
+          p.title.toLowerCase().includes(query) ||
+          p.description.toLowerCase().includes(query) ||
+          (p.category || '').toLowerCase().includes(query) ||
+          (p.promptText || '').toLowerCase().includes(query) ||
+          (p.tags || []).some(t => t.toLowerCase().includes(query));
+      }
 
-      const listForMain = (currentSubCategoriesMap[selectedMainCategory] || []).map(s => s.replace(/^#/, '').trim().toLowerCase());
-      const matchMain = isLooseMatch(p.mainCategory || '', selectedMainCategory) || 
-                        (!p.mainCategory && (
-                          isLooseMatch(p.category || '', selectedMainCategory) ||
-                          listForMain.some(subItem => isLooseMatch(p.category || '', subItem))
-                        ));
+      // 2. matchMain (ignored if hasSearch is true)
+      let matchMain = true;
+      if (!hasSearch) {
+        const listForMain = (currentSubCategoriesMap[selectedMainCategory] || []).map(s => s.replace(/^#/, '').trim().toLowerCase());
+        matchMain = isLooseMatch(p.mainCategory || '', selectedMainCategory) || 
+                    (!p.mainCategory && (
+                      isLooseMatch(p.category || '', selectedMainCategory) ||
+                      listForMain.some(subItem => isLooseMatch(p.category || '', subItem))
+                    ));
+      }
 
+      // 3. matchSub (ignored if hasSearch is true)
       let matchSub = true;
-      if (selectedSubCategory !== '전체') {
+      if (!hasSearch && selectedSubCategory !== '전체') {
         const cleanSub = selectedSubCategory.replace(/^#/, '').trim().toLowerCase();
         const catMatches = isLooseMatch(p.category || '', cleanSub);
         const tagMatches = (p.tags || []).some(tag => isLooseMatch(tag, cleanSub));
         matchSub = catMatches || tagMatches;
       }
 
+      // 4. matchVisibility
       const matchVisibility = showHidden ? true : !p.isHidden;
 
       return matchSearch && matchMain && matchSub && matchVisibility;
@@ -1917,27 +1932,36 @@ export default function App() {
                       // 3. Print log of all prompts to the console as requested by developers
                       console.log(allPrompts);
 
+                      const query = searchQuery.trim().toLowerCase();
+                      const hasSearch = query.length > 0;
+
                       // 2. Perform loose filtering
                       let filtered = allPrompts.filter(p => {
-                        // Title / Description / Tags search match
-                        const matchQ = !searchQuery ? true : (
-                          p.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          p.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          (p.promptText || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          (p.tags || []).some(t => t.toLowerCase().includes(searchQuery.toLowerCase()))
-                        );
+                        // Title / Description / Category / Tags search match
+                        let matchQ = true;
+                        if (hasSearch) {
+                          matchQ =
+                            p.title.toLowerCase().includes(query) ||
+                            p.description.toLowerCase().includes(query) ||
+                            (p.category || '').toLowerCase().includes(query) ||
+                            (p.promptText || '').toLowerCase().includes(query) ||
+                            (p.tags || []).some(t => t.toLowerCase().includes(query));
+                        }
                         
-                        // Main Category Match
-                        const listForMain = (currentSubCategoriesMap[selectedMainCategory] || []).map(s => s.replace(/^#/, '').trim().toLowerCase());
-                        const matchMain = isLooseMatch(p.mainCategory || '', selectedMainCategory) || 
-                                          (!p.mainCategory && (
-                                            isLooseMatch(p.category || '', selectedMainCategory) ||
-                                            listForMain.some(subItem => isLooseMatch(p.category || '', subItem))
-                                          ));
+                        // Main Category Match (ignored if hasSearch is true)
+                        let matchMain = true;
+                        if (!hasSearch) {
+                          const listForMain = (currentSubCategoriesMap[selectedMainCategory] || []).map(s => s.replace(/^#/, '').trim().toLowerCase());
+                          matchMain = isLooseMatch(p.mainCategory || '', selectedMainCategory) || 
+                                            (!p.mainCategory && (
+                                              isLooseMatch(p.category || '', selectedMainCategory) ||
+                                              listForMain.some(subItem => isLooseMatch(p.category || '', subItem))
+                                            ));
+                        }
                         
-                        // Sub Category / Tag Match
+                        // Sub Category / Tag Match (ignored if hasSearch is true)
                         let matchSub = true;
-                        if (selectedSubCategory !== '전체') {
+                        if (!hasSearch && selectedSubCategory !== '전체') {
                           const cleanSub = selectedSubCategory.replace(/^#/, '').trim().toLowerCase();
                           const catMatches = isLooseMatch(p.category || '', cleanSub);
                           const tagMatches = (p.tags || []).some(tag => isLooseMatch(tag, cleanSub));
