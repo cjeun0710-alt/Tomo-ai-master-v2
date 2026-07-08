@@ -454,8 +454,8 @@ export default function App() {
       console.error('Failed to load subcategories:', e);
     }
     return {
-      '원운영': ['카드뉴스'],
-      '반운영': ['가정통신문', '관찰일지', '학부모 상담'],
+      '원운영': ['카드뉴스', '가정통신문'],
+      '반운영': ['관찰일지', '학부모 상담'],
       '관찰/평가': ['관찰기록', '1학기 총평', '2학기 총평', '학기말 총평'],
       '기타': [],
       '지원자료': ['PPT', '학습지도안', '활동지', '영어 교육']
@@ -463,8 +463,8 @@ export default function App() {
   });
 
   const designSubCategoriesMap = useMemo<Record<string, string[]>>(() => ({
-    '원운영': ['Canva', '카드뉴스', '배너', '행사/이벤트', '오리엔테이션', '학부모 교육'],
-    '반운영': ['Canva', '카드뉴스', '배너', '가정통신문'],
+    '원운영': ['Canva', '카드뉴스', '배너', '행사/이벤트', '오리엔테이션', '학부모 교육', '가정통신문'],
+    '반운영': ['Canva', '카드뉴스', '배너'],
     '관찰/평가': [],
     '기타': ['디자인', '인스타그램', '홍보/안내'],
     '지원자료': ['PPT레이아웃', '교구 제작']
@@ -1079,8 +1079,8 @@ export default function App() {
       
       const mainCat = promptToEdit.mainCategory || (
         ['PPT', '학습지도안', '활동지', '영어 교육'].includes(promptToEdit.category) ? '지원자료' :
-        ['카드뉴스'].includes(promptToEdit.category) ? '원운영' :
-        ['가정통신문', '관찰일지', '학부모 상담'].includes(promptToEdit.category) ? '반운영' : ''
+        ['카드뉴스', '가정통신문'].includes(promptToEdit.category) ? '원운영' :
+        ['관찰일지', '학부모 상담'].includes(promptToEdit.category) ? '반운영' : ''
       );
       setFormMainCategory(mainCat);
       setFormSubCategory(promptToEdit.category);
