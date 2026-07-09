@@ -1,0 +1,75 @@
+{
+  "entities": {
+    "PromptTemplate": {
+      "title": "Prompt Template",
+      "description": "A template schema for administrative and educational prompts",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier of the template"
+        },
+        "title": {
+          "type": "string",
+          "description": "The human-readable title of the prompt"
+        },
+        "category": {
+          "type": "string",
+          "description": "Sub-category designation"
+        },
+        "mainCategory": {
+          "type": "string",
+          "description": "Main category classification (e.g. text/design)"
+        },
+        "description": {
+          "type": "string",
+          "description": "Brief summary of the prompt's purpose"
+        },
+        "promptText": {
+          "type": "string",
+          "description": "The instruction template text"
+        },
+        "systemGuidance": {
+          "type": "string",
+          "description": "Optional system prompt rules"
+        },
+        "canvasTemplate": {
+          "type": "string",
+          "description": "Optional layout metadata or template payload"
+        },
+        "tags": {
+          "type": "array",
+          "description": "Associated keyword tags"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Last modified timestamp (ISO format)"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Original creation timestamp"
+        },
+        "isHidden": {
+          "type": "boolean",
+          "description": "Whether the prompt is hidden from public display"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "category",
+        "promptText"
+      ]
+    }
+  },
+  "firestore": {
+    "prompts/{promptId}": {
+      "schema": "PromptTemplate",
+      "description": "Collection of educational text prompts"
+    },
+    "design_prompts/{designPromptId}": {
+      "schema": "PromptTemplate",
+      "description": "Collection of custom design prompt templates"
+    }
+  }
+}

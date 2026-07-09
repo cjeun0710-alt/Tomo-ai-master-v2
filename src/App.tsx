@@ -1,5 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { collection, onSnapshot, doc, setDoc, deleteDoc } from 'firebase/firestore';
+import { db } from './lib/firebase';
 import {
   Sparkles,
   Search,
@@ -112,6 +114,69 @@ const isLooseMatch = (str1: string, str2: string) => {
   return s1.includes(s2) || s2.includes(s1);
 };
 
+enum OperationType {
+  CREATE = 'create',
+  UPDATE = 'update',
+  DELETE = 'delete',
+  LIST = 'list',
+  GET = 'get',
+  WRITE = 'write',
+}
+
+interface FirestoreErrorInfo {
+  error: string;
+  operationType: OperationType;
+  path: string | null;
+  authInfo: {
+    userId?: string | null;
+    email?: string | null;
+    emailVerified?: boolean | null;
+    isAnonymous?: boolean | null;
+    tenantId?: string | null;
+    providerInfo?: {
+      providerId?: string | null;
+      email?: string | null;
+    }[];
+  }
+}
+
+function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
+  const errInfo: FirestoreErrorInfo = {
+    error: error instanceof Error ? error.message : String(error),
+    authInfo: {
+      userId: null,
+      email: null,
+      emailVerified: null,
+      isAnonymous: null,
+      tenantId: null,
+      providerInfo: []
+    },
+    operationType,
+    path
+  };
+  console.error('Firestore Error: ', JSON.stringify(errInfo));
+  throw new Error(JSON.stringify(errInfo));
+}
+
+// Firestore CRUD helpers
+const savePromptToFirestore = async (prompt: PromptTemplate, collectionName: 'prompts' | 'design_prompts') => {
+  try {
+    await setDoc(doc(db, collectionName, prompt.id), prompt);
+    console.log(`Saved prompt ${prompt.id} to Firestore`);
+  } catch (e) {
+    handleFirestoreError(e, OperationType.WRITE, `${collectionName}/${prompt.id}`);
+  }
+};
+
+const deletePromptFromFirestore = async (id: string, collectionName: 'prompts' | 'design_prompts') => {
+  try {
+    await deleteDoc(doc(db, collectionName, id));
+    console.log(`Deleted prompt ${id} from Firestore`);
+  } catch (e) {
+    handleFirestoreError(e, OperationType.DELETE, `${collectionName}/${id}`);
+  }
+};
+
 export default function App() {
   // --- Auth State ---
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(() => {
@@ -206,37 +271,59 @@ export default function App() {
     });
   }, []);
 
-  // --- Auto-sync custom templates back to codebase (Development only) ---
+  // --- Real-time Sync with Firestore ---
   React.useEffect(() => {
-    const syncTimeout = setTimeout(() => {
-      fetch('/api/sync-to-codebase', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          prompts,
-          designPrompts,
-        }),
-      })
-      .then(async (res) => {
-        if (!res.ok) {
-          throw new Error(`Server returned status ${res.status}`);
-        }
-        const text = await res.text();
-        return text ? JSON.parse(text) : {};
-      })
-      .then(data => {
-        if (data.success) {
-          console.log('Successfully synced custom templates to local file system codebase!');
-        }
-      })
-      .catch(err => {
-        console.warn('Auto-sync templates info:', err.message || err);
-      });
-    }, 200); // Debounce by 200ms for instant feedback
-    return () => clearTimeout(syncTimeout);
-  }, [prompts, designPrompts]);
+    // 1. Listen to text prompts from Firestore
+    const unsubscribePrompts = onSnapshot(collection(db, 'prompts'), (snapshot) => {
+      if (snapshot.empty) {
+        // If Firestore prompts collection is empty, seed it with INITIAL_PROMPTS
+        INITIAL_PROMPTS.forEach((p) => {
+          setDoc(doc(db, 'prompts', p.id), p).catch(err => {
+            handleFirestoreError(err, OperationType.CREATE, `prompts/${p.id}`);
+          });
+        });
+      } else {
+        const list: PromptTemplate[] = [];
+        snapshot.forEach((doc) => {
+          list.push(doc.data() as PromptTemplate);
+        });
+        _setPrompts(list);
+        try {
+          localStorage.setItem('tomo_prompts', JSON.stringify(list));
+        } catch (e) {}
+      }
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, 'prompts');
+    });
+
+    // 2. Listen to design prompts from Firestore
+    const unsubscribeDesign = onSnapshot(collection(db, 'design_prompts'), (snapshot) => {
+      if (snapshot.empty) {
+        // If Firestore design_prompts collection is empty, seed it with INITIAL_DESIGN_PROMPTS
+        INITIAL_DESIGN_PROMPTS.forEach((p) => {
+          setDoc(doc(db, 'design_prompts', p.id), p).catch(err => {
+            handleFirestoreError(err, OperationType.CREATE, `design_prompts/${p.id}`);
+          });
+        });
+      } else {
+        const list: PromptTemplate[] = [];
+        snapshot.forEach((doc) => {
+          list.push(doc.data() as PromptTemplate);
+        });
+        _setDesignPrompts(list);
+        try {
+          localStorage.setItem('tomo_design_prompts', JSON.stringify(list));
+        } catch (e) {}
+      }
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, 'design_prompts');
+    });
+
+    return () => {
+      unsubscribePrompts();
+      unsubscribeDesign();
+    };
+  }, []);
 
   const [teachers, setTeachers] = useState<Teacher[]>(INITIAL_TEACHERS);
   const [showToast, setShowToast] = useState<string | null>(null);
@@ -1192,23 +1279,25 @@ export default function App() {
 
     if (editingPrompt) {
       // Modify existing
+      const updatedPrompt = {
+        ...editingPrompt,
+        title: formTitle,
+        category: finalCategory,
+        mainCategory: finalMainCategory,
+        description: formDescription,
+        promptText: mergedPromptText,
+        systemGuidance: formSystemGuidance.trim(),
+        canvasTemplate: formCanvasTemplate.trim(),
+        tags: tagsArray.length > 0 ? tagsArray : [finalCategory],
+        updatedAt: new Date().toISOString().split('T')[0]
+      };
       updateCurrentPrompts((prev: PromptTemplate[]) => prev.map(p => {
         if (p.id === editingPrompt.id) {
-          return {
-            ...p,
-            title: formTitle,
-            category: finalCategory,
-            mainCategory: finalMainCategory,
-            description: formDescription,
-            promptText: mergedPromptText,
-            systemGuidance: formSystemGuidance.trim(),
-            canvasTemplate: formCanvasTemplate.trim(),
-            tags: tagsArray.length > 0 ? tagsArray : [finalCategory],
-            updatedAt: new Date().toISOString().split('T')[0]
-          };
+          return updatedPrompt;
         }
         return p;
       }));
+      savePromptToFirestore(updatedPrompt, activeDomain === 'TEXT' ? 'prompts' : 'design_prompts');
       triggerToast('🎯 프롬프트 정보가 최신 버전(v' + ((templateVersions[savedPromptId] || 1) + 1) + '.0)으로 수정 및 정식 빌드 배포되었습니다.');
     } else {
       // New
@@ -1229,6 +1318,7 @@ export default function App() {
         createdAt: new Date().toISOString().split('T')[0]
       };
       updateCurrentPrompts((prev: PromptTemplate[]) => [newPrompt, ...prev]);
+      savePromptToFirestore(newPrompt, activeDomain === 'TEXT' ? 'prompts' : 'design_prompts');
       triggerToast('✨ 신규 교육용 프롬프트 메타가 CMS 라이브러리에 주입 개정 배포되었습니다.');
     }
     setIsNewPromptModalOpen(false);
@@ -1240,7 +1330,9 @@ export default function App() {
       if (p.id === id) {
         const nextHidden = !p.isHidden;
         triggerToast(nextHidden ? '🔒 [숨김] 프롬프트가 교실 환경 일람에서 숨겨졌습니다.' : '🔓 [보임] 교사 전용 프롬프트 선택지에 다시 노출됩니다.');
-        return { ...p, isHidden: nextHidden };
+        const updatedPrompt = { ...p, isHidden: nextHidden };
+        savePromptToFirestore(updatedPrompt, activeDomain === 'TEXT' ? 'prompts' : 'design_prompts');
+        return updatedPrompt;
       }
       return p;
     }));
@@ -1257,6 +1349,7 @@ export default function App() {
   const confirmAdminDelete = () => {
     if (promptToDelete) {
       updateCurrentPrompts((prev: PromptTemplate[]) => prev.filter(p => p.id !== promptToDelete.id));
+      deletePromptFromFirestore(promptToDelete.id, activeDomain === 'TEXT' ? 'prompts' : 'design_prompts');
       triggerToast('🗑️ 지정된 프롬프트가 영구 삭제 및 기각되었습니다.');
       setIsDeleteConfirmModalOpen(false);
       setPromptToDelete(null);
