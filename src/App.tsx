@@ -474,15 +474,7 @@ export default function App() {
     }
   };
 
-  const [selectedTemplate, setSelectedTemplate] = useState<PromptTemplate | null>(() => {
-    // Prefer user-created prompts (id contains dash) in teacher mode
-    const isTeacher = !isAdminMode;
-    if (isTeacher) {
-      const userCreated = prompts.filter(p => p.id.includes('-'));
-      if (userCreated.length > 0) return userCreated[0];
-    }
-    return prompts.length > 0 ? prompts[0] : null;
-  });
+  const [selectedTemplate, setSelectedTemplate] = useState<PromptTemplate | null>(null);
 
   // Unified Smart Mega Canvas Interactive States
   const [templateVersions, setTemplateVersions] = useState<Record<string, number>>({});
@@ -497,18 +489,10 @@ export default function App() {
   const [mergeFolderType, setMergeFolderType] = useState<'personal' | 'shared'>('shared');
   const [newOfficialFolderInput, setNewOfficialFolderInput] = useState<string>('');
   
-   const [teacherEditMode, setTeacherEditMode] = useState<'tags' | 'raw'>('tags');
+  const [teacherEditMode, setTeacherEditMode] = useState<'tags' | 'raw'>('tags');
   
   // Custom edit prompt state in Step 2 as Single Source of Truth
-  const [canvasText, setCanvasText] = useState<string>(() => {
-    const defaultTemplate = prompts.length > 0 ? prompts[0] : null;
-    if (!defaultTemplate) return '';
-    const textToLoad = defaultTemplate.canvasTemplate ?? defaultTemplate.promptText;
-    return textToLoad.replace(/\{\{([^}]+)\}\}/g, (match, inner) => {
-      const parts = inner.split(':');
-      return `{${parts[1] ? parts[1].trim() : parts[0].trim()}}`;
-    });
-  });
+  const [canvasText, setCanvasText] = useState<string>('');
   const [activeTagIndex, setActiveTagIndex] = useState<number | null>(null);
   const [activeTagValue, setActiveTagValue] = useState<string>('');
   const [isTagCopied, setIsTagCopied] = useState<boolean>(false);
@@ -517,15 +501,7 @@ export default function App() {
   useEffect(() => {
     setIsTagCopied(false);
   }, [activeTagIndex]);
-  const [initialPromptText, setInitialPromptText] = useState<string>(() => {
-    const defaultTemplate = prompts.length > 0 ? prompts[0] : null;
-    if (!defaultTemplate) return '';
-    const textToLoad = defaultTemplate.canvasTemplate ?? defaultTemplate.promptText;
-    return textToLoad.replace(/\{\{([^}]+)\}\}/g, (match, inner) => {
-      const parts = inner.split(':');
-      return `{${parts[1] ? parts[1].trim() : parts[0].trim()}}`;
-    });
-  });
+  const [initialPromptText, setInitialPromptText] = useState<string>('');
   const [selectedTone, setSelectedTone] = useState<'다정하게' | '전문적으로'>('다정하게');
   const [selectedFormat, setSelectedFormat] = useState<'카드뉴스형' | '줄글형'>('줄글형');
   const [promptVolume, setPromptVolume] = useState<string>('A4 반 장 분량 (약 3~4문단)');
@@ -1110,33 +1086,11 @@ export default function App() {
   const handleActiveDomainChange = (domain: 'TEXT' | 'DESIGN') => {
     setActiveDomain(domain);
     setLastCopiedTagValue(null);
-    const list = domain === 'TEXT' ? prompts : designPrompts;
-    // Prefer user-created templates (id contains dash) in teacher mode
-    const filteredList = !isAdminMode ? list.filter(p => p.id.includes('-')) : list;
-    const finalTemplateList = filteredList.length > 0 ? filteredList : list;
     
-    if (finalTemplateList && finalTemplateList.length > 0) {
-      const template = finalTemplateList[0];
-      setSelectedTemplate(template);
-      const textToLoad = template.canvasTemplate ?? template.promptText;
-      const normalizedText = textToLoad.replace(/\{\{([^}]+)\}\}/g, (match, inner) => {
-        const parts = inner.split(':');
-        return `{${parts[1] ? parts[1].trim() : parts[0].trim()}}`;
-      });
-      setCanvasText(normalizedText);
-      setInitialPromptText(normalizedText);
-      
-      const latestVersion = templateVersions[template.id] || 1;
-      setSelectedTemplateWorkingVersion(latestVersion);
-
-      const vars = parseVariables(textToLoad);
-      const initialVals: Record<string, string> = {};
-      vars.forEach(v => {
-        initialVals[v.name] = v.defaultValue;
-      });
-      setVariableValues(initialVals);
-      setVariableDefaults(initialVals);
-    } else {
+    const list = domain === 'TEXT' ? prompts : designPrompts;
+    const isCurrentTemplateValid = selectedTemplate && list.some(p => p.id === selectedTemplate.id);
+    
+    if (!isCurrentTemplateValid) {
       setSelectedTemplate(null);
       setCanvasText('');
       setInitialPromptText('');
@@ -2228,7 +2182,28 @@ export default function App() {
 
               {/* --- STEP 2: PROMPT CANVAS (7:3 split layout) --- */}
               {wizardStep === 2 && (
-                <div className="space-y-6">
+                !selectedTemplate ? (
+                  <div className="min-h-[450px] flex flex-col items-center justify-center bg-white rounded-3xl p-8 border border-slate-200/80 shadow-md text-center">
+                    <div className="w-16 h-16 bg-rose-50 text-[#FF6B6B] rounded-full flex items-center justify-center mb-6">
+                      <Sliders className="w-8 h-8" />
+                    </div>
+                    <h3 className="text-lg font-black text-[#001C3D] mb-6">
+                      선택된 템플릿이 없습니다
+                    </h3>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setWizardStep(1);
+                        triggerToast('📋 템플릿 큐레이션으로 이동합니다.');
+                      }}
+                      className="px-6 py-3 bg-[#FF6B6B] hover:bg-[#FF5252] text-white text-sm font-bold rounded-2xl shadow-md transition-all active:scale-95 cursor-pointer flex items-center gap-2 mx-auto"
+                    >
+                      <Sparkles className="w-4 h-4" />
+                      <span>템플릿 큐레이션으로 가기</span>
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-6">
                   <div>
                     <h3 className="sys-heading-main text-[#001C3D] flex items-center gap-2">
                       <Sliders className="w-5 h-5 text-[#FF6B6B]" />
@@ -2640,6 +2615,7 @@ export default function App() {
 
 
                 </div>
+                )
               )}
 
               {/* --- STEP 3: MEGA PROMPT GENERATION --- */}
