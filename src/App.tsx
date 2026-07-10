@@ -513,6 +513,10 @@ export default function App() {
   const [activeTagValue, setActiveTagValue] = useState<string>('');
   const [isTagCopied, setIsTagCopied] = useState<boolean>(false);
   const [lastCopiedTagValue, setLastCopiedTagValue] = useState<string | null>(null);
+
+  useEffect(() => {
+    setIsTagCopied(false);
+  }, [activeTagIndex]);
   const [initialPromptText, setInitialPromptText] = useState<string>(() => {
     const defaultTemplate = prompts.length > 0 ? prompts[0] : null;
     if (!defaultTemplate) return '';
@@ -1070,45 +1074,27 @@ export default function App() {
     }
   };
 
+  const checkIfTagIsCopyable = (tagIndex: number | null) => {
+    if (tagIndex === null || tagIndex === undefined) return false;
+    const parts = canvasText.split(/(\[.*?\]|\{.*?\})/g);
+    if (tagIndex <= 0 || tagIndex >= parts.length) return false;
+
+    // Get the plain text immediately preceding this tag
+    const precedingText = parts[tagIndex - 1];
+    if (!precedingText) return false;
+
+    // Clean preceding text to extract the last label/key right before the tag
+    const cleaned = precedingText.trim().replace(/[\s\:\-\n\r]+$/, "");
+    const lastToken = cleaned.split(/[\s\n\r]+/).pop() || "";
+
+    // Strictly match 1-2 digits followed by "페이지", e.g., 1페이지, 2페이지, 10페이지
+    const pageRegex = /^[0-9]{1,2}페이지$/;
+    return pageRegex.test(lastToken);
+  };
+
   const shouldShowCopyButton = () => {
     if (activeTagIndex === null) return false;
-    const parts = canvasText.split(/(\[.*?\]|\{.*?\})/g);
-    if (activeTagIndex <= 0 || activeTagIndex >= parts.length) return false;
-
-    // 1. Check the plain text immediately preceding this tag
-    const precedingText = parts[activeTagIndex - 1];
-    if (precedingText) {
-      if (
-        precedingText.includes('페이지') ||
-        precedingText.includes('내용') ||
-        precedingText.includes('표지') ||
-        precedingText.includes('배경') ||
-        precedingText.includes('page') ||
-        precedingText.includes('content')
-      ) {
-        return true;
-      }
-    }
-
-    // 2. Scan backwards to find the nearest section header in brackets, e.g. [분량] or [무드 & 레퍼런스]
-    for (let i = activeTagIndex - 1; i >= 0; i--) {
-      const part = parts[i];
-      if (part.startsWith('[') && part.endsWith(']')) {
-        const sectionName = part.slice(1, -1);
-        if (
-          sectionName.includes('페이지') ||
-          sectionName.includes('내용') ||
-          sectionName.includes('분량') ||
-          sectionName.includes('page') ||
-          sectionName.includes('volume')
-        ) {
-          return true;
-        }
-        break; // Stop at the nearest section header to avoid bleed-through
-      }
-    }
-
-    return false;
+    return checkIfTagIsCopyable(activeTagIndex);
   };
 
   const getTargetPromptToCopy = () => {
@@ -2604,23 +2590,19 @@ export default function App() {
                                   >
                                     적용
                                   </button>
-                                  {shouldShowCopyButton() && (
+                                  {activeDomain === 'DESIGN' && checkIfTagIsCopyable(activeTagIndex) && (
                                     <button
                                       type="button"
                                       onMouseDown={(e) => e.preventDefault()}
-                                      onClick={(e) => {
-                                        e.preventDefault();
+                                      onClick={() => {
                                         navigator.clipboard.writeText(activeTagValue);
-                                        setIsTagCopied(true);
                                         setLastCopiedTagValue(activeTagValue);
-                                        triggerToast('📄 선택한 태그 프롬프트가 클립보드에 복사되었습니다.');
-                                        setTimeout(() => {
-                                          setIsTagCopied(false);
-                                        }, 1500);
+                                        setIsTagCopied(true);
+                                        triggerToast('📄 입력창의 현재 텍스트가 클립보드에 복사되었습니다.');
                                       }}
-                                      className="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 text-xs font-bold px-4 py-2 rounded-xl transition-all cursor-pointer whitespace-nowrap flex items-center gap-1 shadow-sm active:scale-95"
+                                      className="border border-slate-250 hover:border-slate-350 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold px-4 py-2 rounded-xl transition-all cursor-pointer whitespace-nowrap flex items-center gap-1 active:scale-95 shadow-sm"
                                     >
-                                      <span>📄</span> {isTagCopied ? '복사 완료!' : '프롬프트 복사'}
+                                      <span>{isTagCopied ? '✓' : '📄'}</span> {isTagCopied ? '복사 완료' : '프롬프트 복사'}
                                     </button>
                                   )}
                                 </div>
