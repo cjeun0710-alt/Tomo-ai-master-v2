@@ -1194,8 +1194,19 @@ export default function App() {
   // Generate Mega Prompt text combining base + tone + format
   const assembledMegaPrompt = useMemo(() => {
     if (!selectedTemplate) return '';
+    
+    // Get the absolute latest canvas text, incorporating the active tag being edited right now
+    let latestCanvasText = canvasText;
+    if (teacherEditMode === 'tags' && activeTagIndex !== null) {
+      const parts = canvasText.split(/(\[.*?\]|\{.*?\})/g);
+      if (activeTagIndex >= 0 && activeTagIndex < parts.length) {
+        parts[activeTagIndex] = `{${activeTagValue}}`;
+        latestCanvasText = parts.join('');
+      }
+    }
+
+    const compiledBody = getCompiledText(latestCanvasText);
     const sysGuidance = selectedTemplate.systemGuidance || '';
-    const compiledBody = getCompiledText(canvasText);
 
     if (sysGuidance.trim()) {
       return `${sysGuidance.trim()}\n\n${compiledBody}`;
@@ -1216,7 +1227,7 @@ export default function App() {
     }
 
     return `// ==========================================\n// TOMO AI DIRECTOR GENERATED META-PROMPT\n// ==========================================\n\n[주요 지시사항 및 상황 맥락]:\n${compiledBody}\n${toneInstruction}\n${formatInstruction}\n\n[최종 AI 수행 지침]: 상기 명시된 만 3세 발달과업 맞춤형 룰과 교실 context를 완벽히 준수해, 학부모가 극찬할 수준 높은 출력을 한국어로 완수해라.`;
-  }, [selectedTemplate, canvasText, selectedTone, selectedFormat, variableValues]);
+  }, [selectedTemplate, canvasText, selectedTone, selectedFormat, variableValues, teacherEditMode, activeTagIndex, activeTagValue]);
 
   // Handle Admin CRUD or Edit Form Opening
   const openNewPromptModal = (promptToEdit: PromptTemplate | null = null) => {
