@@ -287,6 +287,14 @@ export default function App() {
         snapshot.forEach((doc) => {
           list.push(doc.data() as PromptTemplate);
         });
+        list.sort((a, b) => {
+          const dateA = a.createdAt || '';
+          const dateB = b.createdAt || '';
+          if (dateA !== dateB) {
+            return dateB.localeCompare(dateA);
+          }
+          return (b.id || '').localeCompare(a.id || '');
+        });
         _setPrompts(list);
         try {
           localStorage.setItem('tomo_prompts', JSON.stringify(list));
@@ -309,6 +317,14 @@ export default function App() {
         const list: PromptTemplate[] = [];
         snapshot.forEach((doc) => {
           list.push(doc.data() as PromptTemplate);
+        });
+        list.sort((a, b) => {
+          const dateA = a.createdAt || '';
+          const dateB = b.createdAt || '';
+          if (dateA !== dateB) {
+            return dateB.localeCompare(dateA);
+          }
+          return (b.id || '').localeCompare(a.id || '');
         });
         _setDesignPrompts(list);
         try {
@@ -1428,15 +1444,24 @@ export default function App() {
       if (adminSortOption === 'newest') {
         const dateA = a.createdAt || '';
         const dateB = b.createdAt || '';
-        return dateB.localeCompare(dateA);
+        if (dateA !== dateB) {
+          return dateB.localeCompare(dateA);
+        }
+        return (b.id || '').localeCompare(a.id || '');
       } else if (adminSortOption === 'oldest') {
         const dateA = a.createdAt || '';
         const dateB = b.createdAt || '';
-        return dateA.localeCompare(dateB);
+        if (dateA !== dateB) {
+          return dateA.localeCompare(dateB);
+        }
+        return (a.id || '').localeCompare(b.id || '');
       } else if (adminSortOption === 'recentlyUpdated') {
         const dateA = a.updatedAt || a.createdAt || '';
         const dateB = b.updatedAt || b.createdAt || '';
-        return dateB.localeCompare(dateA);
+        if (dateA !== dateB) {
+          return dateB.localeCompare(dateA);
+        }
+        return (b.id || '').localeCompare(a.id || '');
       }
       return 0;
     });
@@ -1447,7 +1472,7 @@ export default function App() {
     if (savedUserPrompts.find(item => item.id === templateItem.id)) {
       triggerToast('💡 이미 내 보관함에 즐겨찾기 저장 상태로 수납되어 있습니다.');
     } else {
-      setSavedUserPrompts(prev => [...prev, templateItem]);
+      setSavedUserPrompts(prev => [templateItem, ...prev]);
       triggerToast('⭐ 특별 보관함 서랍에 즐겨찾기가 신규 완수되었습니다.');
     }
   };
@@ -2113,6 +2138,16 @@ export default function App() {
                         }
                         
                         return matchQ && matchMain && matchSub;
+                      });
+
+                      // Sort filtered by createdAt descending and id descending
+                      filtered.sort((a, b) => {
+                        const dateA = a.createdAt || '';
+                        const dateB = b.createdAt || '';
+                        if (dateA !== dateB) {
+                          return dateB.localeCompare(dateA);
+                        }
+                        return (b.id || '').localeCompare(a.id || '');
                       });
 
                       if (filtered.length === 0) {
