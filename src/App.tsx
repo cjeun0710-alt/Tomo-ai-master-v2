@@ -40,6 +40,7 @@ import {
   Settings,
   MessageSquare,
   Folder,
+  FolderInput,
   Globe,
   Users,
   MoreVertical,
@@ -349,6 +350,9 @@ export default function App() {
   const [archiveTab, setArchiveTab] = useState<'personal' | 'shared'>('personal');
   const [sharedFilter, setSharedFilter] = useState<'전체' | '공식 서식' | '우수 사례'>('전체');
   const [isDraggingCard, setIsDraggingCard] = useState<boolean>(false);
+  const [movingPromptId, setMovingPromptId] = useState<string | null>(null);
+  const [moveTargetDestination, setMoveTargetDestination] = useState<'personal' | 'shared'>('personal');
+  const [moveTargetFolder, setMoveTargetFolder] = useState<string>('');
 
   const [savedUserPrompts, _setSavedUserPrompts] = useState<PromptTemplate[]>(() => {
     try {
@@ -377,7 +381,7 @@ export default function App() {
     });
   }, []);
 
-  const [sharedRepositoryPrompts, setSharedRepositoryPrompts] = useState<{
+  const [sharedRepositoryPrompts, _setSharedRepositoryPrompts] = useState<{
     id: string;
     title: string;
     category: string;
@@ -389,73 +393,32 @@ export default function App() {
     sharedDate: string;
     status: '분류됨' | '미분류';
     isPinned?: boolean;
-  }[]>([
-    {
-      id: 'shared-1',
-      title: '🍀 만 3세 발달과업 특성 반영 가정통신문 표준 서식',
-      category: '가정통신문',
-      description: '우리 교양 원에서 공식 권장하는 만 3세 자조 능력 특성화 표준 공식 서식 프롬프트입니다.',
-      promptText: '[공식 준수 사항]: 만 3세 시기의 식사 자립 및 배변 습관 지지를 가이드하는 알림장 뼈대를 빌드해라.',
-      type: '공식 서식',
-      author: '원장실',
-      downloads: 142,
-      sharedDate: '2026-06-15',
-      status: '분류됨',
-      isPinned: true
-    },
-    {
-      id: 'shared-2',
-      title: '🎨 햇살반 봄맞이 오감 야외 미술 놀이',
-      category: '행사계획안',
-      description: '최우수 교재 개발 선정작. 유아들의 야외 꽃잎 촉감 발달 및 감색 연계 우수 사례.',
-      promptText: '[교육 계획안]: 들꽃 관찰 및 색깔 비빔 놀이 연계를 위해 발문 가이드를 3개 추출해라.',
-      type: '우수 사례',
-      author: '이수민 수석교사',
-      downloads: 89,
-      sharedDate: '2026-06-17',
-      status: '분류됨',
-      isPinned: false
-    },
-    {
-      id: 'shared-3',
-      title: '🎈 원내 안전 대피 훈련 가이드라인',
-      category: '행사계획안',
-      description: '우리 원 긴급 소방 대피 훈련을 위한 교사용 매뉴얼 표준.',
-      promptText: '[공식 강령]: 만 3세 유동성을 고려한 동선 안배 및 대처 멘트를 상황별로 분류해 제시해라.',
-      type: '공식 서식',
-      author: '안전관리 주임',
-      downloads: 55,
-      sharedDate: '2026-06-18',
-      status: '분류됨',
-      isPinned: true
-    },
-    {
-      id: 'shared-unclass-1',
-      title: '🌱 조롱박 원내 식물 가꾸기 관찰록 초안',
-      category: '미분류',
-      description: '반별 조롱박 심기 및 물주기 놀이를 위해 작성한 아주 대략적인 프롬프트입니다.',
-      promptText: '[조롱박]: 만3세 유아들이 식물의 잎을 관찰하는 발문 가이드라인을 작성하라.',
-      type: '우수 사례',
-      author: '홍길동 교사',
-      downloads: 12,
-      sharedDate: '2026-06-19',
-      status: '미분류',
-      isPinned: false
-    },
-    {
-      id: 'shared-unclass-2',
-      title: '📖 독서 관심 증가 유도형 그림책 배부 멘트',
-      category: '미분류',
-      description: '아이들이 스스로 책을 선택하고 페이지를 넘기도록 유도하는 가정 도서 연계 멘트.',
-      promptText: '[가정 독서]: 만 3세 발달과업인 손가락 소근육 협응과 연계해 능동적 독서를 칭찬하는 멘트.',
-      type: '우수 사례',
-      author: '박지은 교사',
-      downloads: 8,
-      sharedDate: '2026-06-19',
-      status: '미분류',
-      isPinned: false
+  }[]>(() => {
+    try {
+      const saved = localStorage.getItem('tomo_shared_repository_prompts');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          return parsed;
+        }
+      }
+    } catch (e) {
+      console.error('Failed to load sharedRepositoryPrompts from localStorage:', e);
     }
-  ]);
+    return [];
+  });
+
+  const setSharedRepositoryPrompts = React.useCallback((updater: any) => {
+    _setSharedRepositoryPrompts(prev => {
+      const next = typeof updater === 'function' ? updater(prev) : updater;
+      try {
+        localStorage.setItem('tomo_shared_repository_prompts', JSON.stringify(next));
+      } catch (e) {
+        console.error('Failed to save sharedRepositoryPrompts to localStorage:', e);
+      }
+      return next;
+    });
+  }, []);
 
   // --- Teacher Mode 3-Step Wizard States ---
   // Step 1: Template Curation, Step 2: Prompt Canvas, Step 3: Mega Prompt Generation
@@ -506,13 +469,80 @@ export default function App() {
   const [selectedFormat, setSelectedFormat] = useState<'카드뉴스형' | '줄글형'>('줄글형');
   const [promptVolume, setPromptVolume] = useState<string>('A4 반 장 분량 (약 3~4문단)');
   const [isEditingVolume, setIsEditingVolume] = useState<boolean>(false);
+  const [canvasSavedFeedback, setCanvasSavedFeedback] = useState<boolean>(false);
 
   // --- Save Destination Modal States for Step 3 Mega Prompt ---
   const [isSaveModalOpen, setIsSaveModalOpen] = useState<boolean>(false);
   const [saveDocTitle, setSaveDocTitle] = useState<string>('');
   const [saveDestination, setSaveDestination] = useState<'personal' | 'shared'>('personal');
-  const [personalFolders, setPersonalFolders] = useState<string[]>(['미분류', '개인 초안', '학습지도안', '관찰일지', '학부모 상담']);
-  const [sharedFolders, setSharedFolders] = useState<string[]>(['미분류', '가정통신문', '안내문', '공통 서식', '우수 사례', '교육 템플릿', '행정 서식']);
+
+  // --- Save Destination Modal States for Step 2 Prompt Canvas ---
+  const [isCanvasSaveModalOpen, setIsCanvasSaveModalOpen] = useState<boolean>(false);
+  const [canvasSaveTitle, setCanvasSaveTitle] = useState<string>('');
+  const [canvasSaveDestination, setCanvasSaveDestination] = useState<'personal' | 'shared'>('personal');
+  const [canvasSaveSelectedFolder, setCanvasSaveSelectedFolder] = useState<string>('미분류');
+  const [isCanvasSaveCreatingNewFolder, setIsCanvasSaveCreatingNewFolder] = useState<boolean>(false);
+  const [canvasSaveNewFolderName, setCanvasSaveNewFolderName] = useState<string>('');
+  const [personalFolders, _setPersonalFolders] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('tomo_personal_folders');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          if (!parsed.includes('미분류')) {
+            return ['미분류', ...parsed];
+          }
+          return parsed;
+        }
+      }
+    } catch (e) {
+      console.error('Failed to load personalFolders from localStorage:', e);
+    }
+    return ['미분류'];
+  });
+
+  const setPersonalFolders = React.useCallback((updater: any) => {
+    _setPersonalFolders(prev => {
+      const next = typeof updater === 'function' ? updater(prev) : updater;
+      try {
+        localStorage.setItem('tomo_personal_folders', JSON.stringify(next));
+      } catch (e) {
+        console.error('Failed to save personalFolders to localStorage:', e);
+      }
+      return next;
+    });
+  }, []);
+
+  const [sharedFolders, _setSharedFolders] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('tomo_shared_folders');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          if (!parsed.includes('미분류')) {
+            return ['미분류', ...parsed];
+          }
+          return parsed;
+        }
+      }
+    } catch (e) {
+      console.error('Failed to load sharedFolders from localStorage:', e);
+    }
+    return ['미분류'];
+  });
+
+  const setSharedFolders = React.useCallback((updater: any) => {
+    _setSharedFolders(prev => {
+      const next = typeof updater === 'function' ? updater(prev) : updater;
+      try {
+        localStorage.setItem('tomo_shared_folders', JSON.stringify(next));
+      } catch (e) {
+        console.error('Failed to save sharedFolders to localStorage:', e);
+      }
+      return next;
+    });
+  }, []);
+
   const [selectedFolder, setSelectedFolder] = useState<string>('미분류');
   const [isCreatingNewFolder, setIsCreatingNewFolder] = useState<boolean>(false);
   const [newFolderName, setNewFolderName] = useState<string>('');
@@ -521,10 +551,6 @@ export default function App() {
   // Folder renaming and locking states
   const [lockedFolders, setLockedFolders] = useState<Record<string, boolean>>({
     '미분류': true,
-    '가정통신문': true,
-    '안내문': true,
-    '공통 서식': true,
-    '행정 서식': true,
   });
   const [editingFolder, setEditingFolder] = useState<{ type: 'personal' | 'shared'; name: string } | null>(null);
   const [editingFolderNameValue, setEditingFolderNameValue] = useState<string>('');
@@ -927,17 +953,10 @@ export default function App() {
 
   // One-click Reset of folder structures to Admin's latest / Factory Standard Standard Layout
   const restoreFoldersToStandard = () => {
-    setPersonalFolders(['미분류', '개인 초안', '학습지도안', '관찰일지', '학부모 상담']);
-    setSharedFolders(['미분류', '가정통신문', '안내문', '공통 서식', '우수 사례', '교육 템플릿', '행정 서식']);
+    setPersonalFolders(['미분류']);
+    setSharedFolders(['미분류']);
     setLockedFolders({
       '미분류': true,
-      '가정통신문': true,
-      '안내문': true,
-      '공통 서식': true,
-      '행정 서식': true,
-      '학습지도안': true,
-      '관찰일지': true,
-      '학부모 상담': true,
     });
     setModifiedFolders({});
 
@@ -2128,7 +2147,6 @@ export default function App() {
                             {/* Banner row */}
                             <div className="flex items-center justify-between mb-2">
                               <PromptCategoryPill category={p.category} />
-                              <span className="sys-caption text-slate-400 font-mono">ID: {p.id}</span>
                             </div>
 
                             {/* Title row */}
@@ -2272,7 +2290,7 @@ export default function App() {
                         <div className="flex items-center gap-2.5 min-w-0">
                           <Sparkles className="w-4 h-4 text-emerald-400 shrink-0 animate-pulse" />
                           <div className="text-left">
-                            <p className="text-[11px] font-black tracking-wide text-slate-200">AI 원외 클라우드 연동 엔진 선택 (Cloud Engines)</p>
+                            <p className="text-[11px] font-black tracking-wide text-slate-200">외부 AI 연동</p>
                           </div>
                         </div>
 
@@ -2319,33 +2337,13 @@ export default function App() {
                             <span>✨ Gemini 열기</span>
                             <ExternalLink className="w-3 h-3 text-slate-400" />
                           </a>
-                          <a
-                            href="https://www.canva.com"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            onClick={(e) => {
-                              const textToCopy = getTargetPromptToCopy();
-                              navigator.clipboard.writeText(textToCopy);
-                              triggerParticles(['🎨', '📋', '💖'], e.clientX, e.clientY);
-                              setAnalyticsCopyVolume(prev => prev + 1);
-                              if (textToCopy !== assembledMegaPrompt) {
-                                triggerToast('🎨 Canva 디자인 스튜디오가 새 창에서 열렸습니다. 선택한 [개별 페이지 프롬프트]가 클립보드로 자동 탑재되었습니다!');
-                              } else {
-                                triggerToast('🎨 Canva 디자인 스튜디오가 새 창에서 열렸습니다. 병합 완료된 메가 프롬프트가 클립보드로 자동 탑재되었습니다!');
-                              }
-                            }}
-                            className="h-8 px-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-150 border border-slate-700/80 hover:border-slate-500 text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer shadow-xs active:scale-95"
-                            title="Canva 웹사이트를 새 탭에서 열기"
-                          >
-                            <span>🎨 Canva 열기</span>
-                            <ExternalLink className="w-3 h-3 text-slate-400" />
-                          </a>
+
                         </div>
                       </div>
 
                       {/* Visual Separation Line/Spacing */}
                       <div className="pt-2 pb-1 border-t border-slate-100 flex items-center justify-between">
-                        <span className="text-[10px] text-slate-400 font-extrabold tracking-wider uppercase">캔버스 가이드 및 도구 (Canvas Editor Workspace)</span>
+                        <span className="text-[10px] text-slate-400 font-extrabold tracking-wider uppercase">캔버스 가이드</span>
                         <div className="h-px bg-slate-100 flex-1 ml-4"></div>
                       </div>
 
@@ -2357,11 +2355,6 @@ export default function App() {
                           <span className="text-xs font-black text-[#001C3D] truncate max-w-[180px] sm:max-w-xs" title={selectedTemplate?.title}>
                             {selectedTemplate?.title}
                           </span>
-                          {versionControlEnabled && selectedTemplate && (
-                            <span className="text-[10px] bg-slate-200 text-slate-700 font-extrabold px-1.5 py-0.5 rounded leading-none shrink-0" title={`현재 개별 작업 v${selectedTemplateWorkingVersion}.0 적용중`}>
-                              v{selectedTemplateWorkingVersion}.0
-                            </span>
-                          )}
                         </div>
 
                         {/* Middle/Right: Toolbar tools */}
@@ -2404,14 +2397,28 @@ export default function App() {
                             <button
                               type="button"
                               onClick={() => {
-                                setIsSaveModalOpen(true);
-                                setSaveDocTitle(selectedTemplate ? `${selectedTemplate.title} (완성본)` : '새 메가 프롬프트');
-                                setSaveDestination('personal');
+                                setCanvasSaveTitle(selectedTemplate ? `${selectedTemplate.title} (수정본)` : '새로운 프롬프트');
+                                setCanvasSaveDestination('personal');
+                                setCanvasSaveSelectedFolder('미분류');
+                                setIsCanvasSaveCreatingNewFolder(false);
+                                setCanvasSaveNewFolderName('');
+                                setIsCanvasSaveModalOpen(true);
                               }}
-                              className="h-8 px-3 bg-[#FF6B6B] hover:bg-[#fa5353] text-white rounded-xl text-[11px] font-black shadow-2xs hover:scale-101 active:scale-99 transition-all flex items-center gap-1.5 cursor-pointer"
+                              className={`h-8 px-3 text-white rounded-xl text-[11px] font-black shadow-2xs hover:scale-101 active:scale-99 transition-all flex items-center gap-1.5 cursor-pointer ${
+                                canvasSavedFeedback ? 'bg-emerald-600 hover:bg-emerald-500' : 'bg-[#FF6B6B] hover:bg-[#fa5353]'
+                              }`}
                             >
-                              <FolderSync className="w-3.5 h-3.5" />
-                              <span>내 보관함</span>
+                              {canvasSavedFeedback ? (
+                                <>
+                                  <Check className="w-3.5 h-3.5" />
+                                  <span>✓ 보관 완료</span>
+                                </>
+                              ) : (
+                                <>
+                                  <FolderSync className="w-3.5 h-3.5" />
+                                  <span>내 보관함</span>
+                                </>
+                              )}
                             </button>
                           </div>
 
@@ -2473,7 +2480,7 @@ export default function App() {
                                   return (
                                     <span 
                                       key={idx} 
-                                      className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest bg-amber-500/10 text-amber-700 border border-amber-300/40 mx-1 align-middle"
+                                      className="inline-flex items-start text-left px-4 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider bg-amber-500/10 text-amber-700 border border-amber-300/40 mx-1 align-middle whitespace-normal break-words leading-relaxed"
                                     >
                                       {slotContent}
                                     </span>
@@ -2491,14 +2498,14 @@ export default function App() {
                                         setActiveTagValue(tagContent);
                                         triggerToast(`✏️ 스마트 태그 [${tagContent}] 기입 상자를 로드했습니다.`);
                                       }}
-                                      className={`inline-flex items-center gap-1 mx-1 px-2.5 py-1 bg-blue-50 hover:bg-blue-100 border rounded-lg text-xs font-black transition-all transform hover:scale-105 active:scale-95 duration-100 shadow-xs cursor-pointer align-middle ${
+                                      className={`inline-flex items-start text-left gap-1.5 mx-1 px-4 py-1.5 bg-blue-50 hover:bg-blue-100 border rounded-lg text-xs font-black transition-all transform hover:scale-105 active:scale-95 duration-100 shadow-xs cursor-pointer align-middle whitespace-normal break-words leading-relaxed ${
                                         isEditing 
                                           ? 'border-blue-500 bg-blue-100 text-blue-800 ring-2 ring-blue-500/30'
                                           : 'border-blue-200 text-blue-750'
                                       }`}
                                     >
-                                      <span className="text-[9px] text-blue-400">🏷️</span>
-                                      <span className="underline decoration-dotted decoration-blue-500/40">{tagContent}</span>
+                                      <span className="text-[9px] text-blue-400 mt-0.5 shrink-0">🏷️</span>
+                                      <span className="underline decoration-dotted decoration-blue-500/40 text-left block flex-1">{tagContent}</span>
                                     </button>
                                   );
                                 } else {
@@ -2534,52 +2541,60 @@ export default function App() {
                                     <X className="w-3.5 h-3.5" />
                                   </button>
                                 </div>
-                                <div className="flex gap-2">
-                                  <input
-                                    type="text"
-                                    value={activeTagValue}
-                                    onChange={e => setActiveTagValue(e.target.value)}
-                                    placeholder="여기에 값을 기입하세요..."
-                                    onBlur={() => {
-                                      // onBlur auto save
-                                      setTimeout(() => {
-                                        if (activeTagIndex !== null) {
-                                          handleTagUpdate(activeTagIndex, activeTagValue);
-                                        }
-                                      }, 150);
-                                    }}
-                                    onKeyDown={e => {
-                                      if (e.key === 'Enter') {
-                                        handleTagUpdate(activeTagIndex, activeTagValue);
-                                      } else if (e.key === 'Escape') {
-                                        setActiveTagIndex(null);
-                                      }
-                                    }}
-                                    className="flex-1 text-xs bg-white border border-slate-200 rounded-xl px-3 py-2 font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-slate-800"
-                                    autoFocus
-                                  />
-                                  <button
-                                    type="button"
-                                    onClick={() => handleTagUpdate(activeTagIndex, activeTagValue)}
-                                    className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-4 py-2 rounded-xl transition-all cursor-pointer whitespace-nowrap"
-                                  >
-                                    적용
-                                  </button>
-                                  {activeDomain === 'DESIGN' && checkIfTagIsCopyable(activeTagIndex) && (
-                                    <button
-                                      type="button"
-                                      onMouseDown={(e) => e.preventDefault()}
-                                      onClick={() => {
-                                        navigator.clipboard.writeText(activeTagValue);
-                                        setLastCopiedTagValue(activeTagValue);
-                                        setIsTagCopied(true);
-                                        triggerToast('📄 입력창의 현재 텍스트가 클립보드에 복사되었습니다.');
+                                <div className="flex flex-col gap-3">
+                                  <div className="flex flex-col md:flex-row gap-3">
+                                    <textarea
+                                      value={activeTagValue}
+                                      onChange={e => setActiveTagValue(e.target.value)}
+                                      placeholder="여기에 값을 기입하세요..."
+                                      onBlur={() => {
+                                        // onBlur auto save
+                                        setTimeout(() => {
+                                          if (activeTagIndex !== null) {
+                                            handleTagUpdate(activeTagIndex, activeTagValue);
+                                          }
+                                        }, 150);
                                       }}
-                                      className="border border-slate-250 hover:border-slate-350 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold px-4 py-2 rounded-xl transition-all cursor-pointer whitespace-nowrap flex items-center gap-1 active:scale-95 shadow-sm"
-                                    >
-                                      <span>{isTagCopied ? '✓' : '📄'}</span> {isTagCopied ? '복사 완료' : '프롬프트 복사'}
-                                    </button>
-                                  )}
+                                      onKeyDown={e => {
+                                        if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                                          e.preventDefault();
+                                          handleTagUpdate(activeTagIndex, activeTagValue);
+                                        } else if (e.key === 'Escape') {
+                                          setActiveTagIndex(null);
+                                        }
+                                      }}
+                                      className="flex-1 min-h-[96px] text-xs bg-white border border-slate-200 rounded-xl px-3 py-2 font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-slate-800 resize-y whitespace-pre-wrap break-words leading-relaxed"
+                                      autoFocus
+                                    />
+                                    <div className="flex md:flex-col gap-2 justify-end shrink-0">
+                                      <button
+                                        type="button"
+                                        onClick={() => handleTagUpdate(activeTagIndex, activeTagValue)}
+                                        className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition-all cursor-pointer whitespace-nowrap flex items-center justify-center gap-1.5 h-10"
+                                      >
+                                        적용
+                                      </button>
+                                      {activeDomain === 'DESIGN' && checkIfTagIsCopyable(activeTagIndex) && (
+                                        <button
+                                          type="button"
+                                          onMouseDown={(e) => e.preventDefault()}
+                                          onClick={() => {
+                                            navigator.clipboard.writeText(activeTagValue);
+                                            setLastCopiedTagValue(activeTagValue);
+                                            setIsTagCopied(true);
+                                            triggerToast('📄 입력창의 현재 텍스트가 클립보드에 복사되었습니다.');
+                                          }}
+                                          className="border border-slate-250 hover:border-slate-350 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold px-4 py-2.5 rounded-xl transition-all cursor-pointer whitespace-nowrap flex items-center justify-center gap-1.5 active:scale-95 shadow-sm h-10"
+                                        >
+                                          <span>{isTagCopied ? '✓' : '📄'}</span> {isTagCopied ? '복사 완료' : '프롬프트 복사'}
+                                        </button>
+                                      )}
+                                    </div>
+                                  </div>
+                                  <div className="text-[10px] text-slate-400 font-bold flex items-center gap-1 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100">
+                                    <span>💡</span>
+                                    <span>줄바꿈은 <kbd className="bg-white px-1 py-0.5 rounded border border-slate-200 text-slate-600 font-mono text-[9px]">Enter</kbd>, 수정 완료는 우측 <strong>[적용]</strong> 버튼이나 <kbd className="bg-white px-1 py-0.5 rounded border border-slate-200 text-slate-600 font-mono text-[9px]">Ctrl + Enter</kbd> 키를 누르세요. 우측 하단 모서리를 끌어 상자 높이를 조절할 수 있습니다.</span>
+                                  </div>
                                 </div>
                               </motion.div>
                             )}
@@ -3027,7 +3042,6 @@ export default function App() {
                           {/* Banner row */}
                           <div className="flex items-center justify-between mb-2">
                             <PromptCategoryPill category={p.category} />
-                            <span className="sys-caption text-slate-400 font-mono">ID: {p.id}</span>
                           </div>
 
                           <h3 className="sys-heading-sub text-[#001C3D] flex items-center gap-1.5 leading-snug">
@@ -4216,8 +4230,7 @@ export default function App() {
                     <div className="flex items-center gap-2">
                       <FolderSync className="w-5 h-5 text-[#FFD93D]" />
                       <div>
-                        <h3 className="text-base font-bold font-sans text-white">통합 문서 아카이브 수납고 (Enterprise Folder Explorer)</h3>
-                        <p className="text-[10px] text-[#8EF6D6] font-mono">Teacher Shared & Private Storage • Standard Governance System</p>
+                        <h3 className="text-base font-bold font-sans text-white">보관함</h3>
                       </div>
                     </div>
                     <button
@@ -4273,7 +4286,7 @@ export default function App() {
                       title="드래그 드롭으로 간편히 공유 가능"
                     >
                       <Globe className="w-3.5 h-3.5" />
-                      <span>우리 원 문서함 ({sharedRepositoryPrompts.length})</span>
+                      <span>우리 원 보관함 ({sharedRepositoryPrompts.length})</span>
                     </button>
                   </div>
                 </div>
@@ -4284,36 +4297,8 @@ export default function App() {
                   {/* LEFT COLUMN: Folder Tree System (1/3 Width) */}
                   <div className="md:col-span-1 border-r border-slate-200 bg-white p-4 flex flex-col justify-between overflow-y-auto min-h-[300px]">
                     <div className="space-y-4">
-                      <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-                        <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-1">
-                          📁 수납 폴더 계통도 (Tree View)
-                        </span>
-                        <span className="text-[9px] text-[#FF6B6B] font-bold">
-                          {archiveTab === 'personal' ? '개인 전용' : '원내 공용'}
-                        </span>
-                      </div>
 
                       <div className="space-y-1.5 max-h-[380px] overflow-y-auto pr-0.5 custom-scrollbar">
-                        {/* 1. Entire Show Node [전체 보기] */}
-                        <div
-                          onClick={() => setActiveCabinetFolderFilter('전체')}
-                          className={`flex items-center justify-between p-2.5 rounded-xl border text-[11px] font-bold transition-all cursor-pointer ${
-                            activeCabinetFolderFilter === '전체'
-                              ? archiveTab === 'personal'
-                                ? 'bg-rose-50 border-rose-200 text-rose-750 font-black shadow-xs'
-                                : 'bg-blue-50 border-blue-200 text-blue-750 font-black shadow-xs'
-                              : 'bg-slate-50 hover:bg-slate-100/80 border-slate-200/50 text-slate-600'
-                          }`}
-                        >
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-sm">👁️‍🗨️</span>
-                            <span>[전체 서식 모아보기]</span>
-                          </div>
-                          <span className="text-[9px] bg-white border border-slate-200/80 px-1.5 py-0.2 rounded font-black text-slate-450">
-                            {archiveTab === 'personal' ? savedUserPrompts.length : sharedRepositoryPrompts.length}개
-                          </span>
-                        </div>
-
                         {/* 2. Directory Nodes Mapping */}
                         {(archiveTab === 'personal' ? personalFolders : sharedFolders).map(folder => {
                           const isSelected = activeCabinetFolderFilter === folder;
@@ -4439,11 +4424,11 @@ export default function App() {
 
                     {/* Left Bottom New Folder Creator */}
                     <div className="pt-3 border-t border-slate-150 mt-4 bg-slate-50 p-2.5 rounded-2xl">
-                      <span className="text-[9px] font-black text-slate-450 block mb-1.5">📂 새 아카이브 수납 합 개설</span>
+                      <span className="text-[9px] font-black text-slate-450 block mb-1.5">📂 새 폴더 만들기</span>
                       <div className="flex gap-1.5">
                         <input
                           type="text"
-                          placeholder="개설할 폴더 제목..."
+                          placeholder="새 폴더 이름"
                           value={newExplorerFolderInput}
                           onChange={(e) => setNewExplorerFolderInput(e.target.value)}
                           onKeyDown={(e) => {
@@ -4517,7 +4502,7 @@ export default function App() {
                           }}
                           className="px-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-[10px] font-black cursor-pointer transition-colors"
                         >
-                          개설
+                          만들기
                         </button>
                       </div>
                     </div>
@@ -4549,22 +4534,398 @@ export default function App() {
                         )}
                       </div>
 
-                      {/* Breadcrumbs Navigation UI Area */}
-                      <div className="flex items-center gap-1.5 text-[11px] font-black font-sans text-slate-500">
-                        <span className="text-slate-400 flex items-center gap-1">📍 현재 위치:</span>
-                        <span className="text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">
-                          {archiveTab === 'personal' ? 'My Pocket' : 'Shared Hub'}
-                        </span>
-                        <span className="text-slate-405 font-bold">▶</span>
-                        <span className="text-indigo-650 bg-indigo-50/50 px-2 py-0.5 rounded border border-indigo-150 font-mono">
-                          {archiveTab === 'personal' ? '[Personal]' : '[Shared]'} &gt; {activeCabinetFolderFilter}
-                        </span>
-                      </div>
+
                     </div>
 
                     {/* Documents List Output Area */}
                     <div className="flex-1 overflow-y-auto pr-1">
-                      {archiveTab === 'personal' ? (
+                      {explorerSearch.trim() !== '' ? (
+                        /* ==============================================================
+                           INTEGRATED SEARCH MODE: Unified results across both archives
+                           ============================================================== */
+                        (() => {
+                          const q = explorerSearch.trim().toLowerCase();
+                          
+                          const unifiedPersonal = savedUserPrompts.map(p => ({ ...p, source: 'personal' as const }));
+                          const unifiedShared = sharedRepositoryPrompts.map(p => ({ ...p, source: 'shared' as const }));
+                          const combinedPool = [...unifiedPersonal, ...unifiedShared];
+                          
+                          const filtered = combinedPool.filter(p => {
+                            return (
+                              p.title.toLowerCase().includes(q) ||
+                              (p.description || '').toLowerCase().includes(q) ||
+                              (p.promptText || '').toLowerCase().includes(q)
+                            );
+                          });
+
+                          if (filtered.length === 0) {
+                            return (
+                              <div className="p-12 text-center text-slate-450 space-y-2 pt-20 bg-white rounded-2xl border border-dashed border-slate-200" key="empty-pocket">
+                                <HelpCircle className="w-8 h-8 text-slate-300 mx-auto" />
+                                <p className="text-xs font-black w-full text-center">보관된 프롬프트가 없습니다.</p>
+                                <p className="text-[10px] text-slate-405 leading-relaxed">검색어를 변경하거나, 캔버스에서 새로운 프롬프트를 저장해 보세요.</p>
+                              </div>
+                            );
+                          }
+
+                          return (
+                            <div className="space-y-4" key="integrated-container">
+                              <div className="text-[10px] bg-slate-100 text-slate-700 px-3 py-1.5 rounded-xl border border-slate-200 font-extrabold flex justify-between items-center">
+                                <span>🔍 통합 검색 결과: 총 {filtered.length}건</span>
+                                <button
+                                  onClick={() => setExplorerSearch('')}
+                                  className="text-[9px] underline text-slate-500 font-bold cursor-pointer"
+                                >
+                                  검색 초기화
+                                </button>
+                              </div>
+
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pb-4" key="integrated-grid">
+                                {filtered.map(p => {
+                                  if (p.source === 'personal') {
+                                    return (
+                                      <div
+                                        key={p.id}
+                                        className="bg-slate-50 rounded-2xl p-4 border border-slate-200 hover:border-[#FF6B6B] transition-all relative group flex flex-col justify-between hover:shadow-sm overflow-hidden"
+                                      >
+                                        <div>
+                                          <div className="flex items-center justify-between mb-1.5">
+                                            <span className="text-[9px] bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full border border-amber-200 font-bold">
+                                              내 보관함
+                                            </span>
+                                            <button
+                                              onClick={() => removeFromDrawerMyPocket(p.id)}
+                                              className="text-slate-400 hover:text-rose-500 text-xs font-bold cursor-pointer transition-colors"
+                                            >
+                                              삭제
+                                            </button>
+                                          </div>
+                                          <h4 className="text-xs font-black text-[#001C3D] mb-1.5 flex items-center gap-1">
+                                            <span>📄</span> {p.title}
+                                          </h4>
+                                          <p className="text-[11px] text-slate-500 leading-normal line-clamp-2">
+                                            {p.description}
+                                          </p>
+                                          <span className="block text-[10px] text-slate-400 font-semibold mt-1">
+                                            📁 폴더: {p.category || '미분류'}
+                                          </span>
+                                        </div>
+
+                                        <div className="mt-4 pt-3 border-t border-slate-200/50 flex flex-col gap-2">
+                                          <button
+                                            onClick={() => {
+                                              selectTemplateAndGoToCanvas(p);
+                                              setIsSavedDrawerOpen(false);
+                                            }}
+                                            className="w-full bg-[#FF6B6B] hover:bg-[#fa5353] text-[10px] text-white py-2 rounded-lg font-bold transition-all flex items-center justify-center gap-1 shadow-xs cursor-pointer text-center"
+                                          >
+                                            <Check className="w-3.5 h-3.5" />
+                                            템플릿 선택
+                                          </button>
+                                          
+                                          <div className="w-full grid grid-cols-2 gap-2">
+                                            <button
+                                              onClick={(e) => copyAndOpenExternalAI(p.promptText, e)}
+                                              className="w-full bg-white hover:bg-slate-100 text-slate-700 hover:text-[#001C3D] text-[10px] py-1.5 rounded-lg border border-slate-250 font-bold transition-all flex items-center justify-center gap-1 cursor-pointer"
+                                            >
+                                              <Copy className="w-3.5 h-3.5" />
+                                              복사
+                                            </button>
+
+                                            <button
+                                              onClick={() => {
+                                                setMovingPromptId(p.id);
+                                                setMoveTargetDestination('personal');
+                                                setMoveTargetFolder(p.category || '미분류');
+                                              }}
+                                              className="w-full bg-white hover:bg-slate-100 text-slate-700 hover:text-[#001C3D] text-[10px] py-1.5 rounded-lg border border-slate-250 font-bold transition-all flex items-center justify-center gap-1 cursor-pointer"
+                                            >
+                                              <FolderInput className="w-3.5 h-3.5 text-slate-500" />
+                                              이동
+                                            </button>
+                                          </div>
+                                        </div>
+
+                                        {/* Inline Folder Selector Modal Overlay */}
+                                        {movingPromptId === p.id && (
+                                          <div className="absolute inset-0 bg-slate-900/95 rounded-2xl p-4 flex flex-col justify-between z-10 text-white animate-fade-in">
+                                            <div className="space-y-1 overflow-y-auto max-h-[75%] pr-1">
+                                              <span className="text-[10px] font-black uppercase text-[#FF6B6B] tracking-widest block flex items-center gap-1">
+                                                📂 폴더 이동 설정
+                                              </span>
+                                              <p className="text-[11px] text-slate-200 line-clamp-1 font-bold">📄 {p.title}</p>
+                                              
+                                              <label className="block text-[9px] font-bold text-slate-400 mt-1">이동할 대상 보관함:</label>
+                                              <select
+                                                value={moveTargetDestination}
+                                                onChange={(e) => {
+                                                  const nextDest = e.target.value as 'personal' | 'shared';
+                                                  setMoveTargetDestination(nextDest);
+                                                  setMoveTargetFolder('미분류');
+                                                }}
+                                                className="w-full text-[11px] bg-slate-800 border border-slate-700 rounded-lg px-2 py-1 text-white focus:outline-none focus:border-[#FF6B6B]"
+                                              >
+                                                <option value="personal">📂 내 보관함</option>
+                                                <option value="shared">🌐 우리 원 문서함</option>
+                                              </select>
+
+                                              <label className="block text-[9px] font-bold text-slate-400 mt-1">이동할 대상 폴더 선택:</label>
+                                              <select
+                                                value={moveTargetFolder}
+                                                onChange={(e) => setMoveTargetFolder(e.target.value)}
+                                                className="w-full text-[11px] bg-slate-800 border border-slate-700 rounded-lg px-2 py-1 text-white focus:outline-none focus:border-[#FF6B6B]"
+                                              >
+                                                {(moveTargetDestination === 'personal' ? personalFolders : sharedFolders).map(f => (
+                                                  <option key={f} value={f}>{f}</option>
+                                                ))}
+                                              </select>
+                                            </div>
+                                            <div className="flex gap-2 mt-2">
+                                              <button
+                                                type="button"
+                                                onClick={() => {
+                                                  if (moveTargetDestination === 'personal') {
+                                                    setSavedUserPrompts(prev => prev.map(item => item.id === p.id ? { ...item, category: moveTargetFolder } : item));
+                                                  } else {
+                                                    setSavedUserPrompts(prev => prev.filter(item => item.id !== p.id));
+                                                    const newSharedItem = {
+                                                      id: `shared-migrated-${Date.now()}`,
+                                                      title: p.title.startsWith('🌟') ? p.title : `🌟 [우수사례] ${p.title}`,
+                                                      category: moveTargetFolder,
+                                                      description: p.description || '내 보관함에서 이식된 프롬프트입니다.',
+                                                      promptText: p.promptText,
+                                                      type: '우수 사례' as const,
+                                                      author: '전소은 교사',
+                                                      downloads: 0,
+                                                      sharedDate: new Date().toISOString().split('T')[0],
+                                                      status: '분류됨' as const,
+                                                      isPinned: false
+                                                    };
+                                                    setSharedRepositoryPrompts(prev => [newSharedItem, ...prev]);
+                                                  }
+                                                  triggerToast('선택하신 보관함으로 문서가 이동되었습니다.');
+                                                  setMovingPromptId(null);
+                                                }}
+                                                className="flex-1 bg-[#FF6B6B] hover:bg-[#fa5353] text-white text-[10px] font-bold py-1.5 rounded-lg transition-colors cursor-pointer"
+                                              >
+                                                이동 완료
+                                              </button>
+                                              <button
+                                                type="button"
+                                                onClick={() => {
+                                                  setMovingPromptId(null);
+                                                }}
+                                                className="flex-1 bg-slate-700 hover:bg-slate-600 text-slate-200 text-[10px] font-bold py-1.5 rounded-lg transition-colors cursor-pointer"
+                                              >
+                                                취소
+                                              </button>
+                                            </div>
+                                          </div>
+                                        )}
+                                      </div>
+                                    );
+                                  } else {
+                                    // p.source === 'shared'
+                                    return (
+                                      <div
+                                        key={p.id}
+                                        className="bg-blue-50/30 rounded-2xl p-4 border border-blue-100 hover:border-blue-300 transition-all relative flex flex-col justify-between hover:shadow-sm overflow-hidden"
+                                      >
+                                        <div>
+                                          <div className="flex items-center justify-between mb-1.5">
+                                            <span className="text-[9px] bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full border border-blue-200 font-bold">
+                                              우리 원 보관함
+                                            </span>
+                                            {p.isPinned ? (
+                                              <span className="text-[9px] px-2.5 py-0.5 rounded-full font-black bg-amber-100 text-amber-800 border border-amber-300 flex items-center gap-0.5">
+                                                ⭐ 공식 서식 (Official)
+                                              </span>
+                                            ) : (
+                                              <span className={`text-[9px] px-2.5 py-0.5 rounded-full font-black border ${
+                                                p.type === '공식 서식'
+                                                  ? 'bg-amber-50 text-amber-700 border-amber-200'
+                                                  : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                              }`}>
+                                                {p.type}
+                                              </span>
+                                            )}
+                                          </div>
+                                          <h4 className="text-xs font-black text-[#001C3D] mb-1.5 flex items-center gap-1">
+                                            <span>🌍</span> {p.title}
+                                          </h4>
+                                          <p className="text-[11px] text-slate-500 leading-normal line-clamp-2">
+                                            {p.description}
+                                          </p>
+                                          <span className="block text-[10px] text-slate-400 font-bold mt-2">
+                                            ✍️ 저자/안배: {p.author}
+                                          </span>
+                                        </div>
+
+                                        <div className="mt-4 pt-3 border-t border-slate-200/50 flex flex-col gap-2">
+                                          <button
+                                            onClick={() => {
+                                              selectTemplateAndGoToCanvas({
+                                                id: p.id,
+                                                title: p.title,
+                                                category: p.category as any,
+                                                description: p.description,
+                                                promptText: p.promptText,
+                                                satisfaction: 97,
+                                                runs: 100,
+                                                tags: ['교직공유'],
+                                                efficiency: 95,
+                                                isHidden: false,
+                                                createdAt: '2026-06-18'
+                                              });
+                                              setIsSavedDrawerOpen(false);
+                                            }}
+                                            className="w-full bg-blue-600 hover:bg-blue-700 text-[10px] text-white py-2 rounded-lg font-bold transition-all flex items-center justify-center gap-1 shadow-sm cursor-pointer"
+                                          >
+                                            <Check className="w-3.5 h-3.5" />
+                                            이 공유 템플릿 연동 조립
+                                          </button>
+                                          
+                                          <div className="grid grid-cols-3 gap-1.5">
+                                            <button
+                                              onClick={(e) => copyAndOpenExternalAI(p.promptText, e)}
+                                              className="bg-white hover:bg-slate-100 text-slate-700 text-[10px] py-1.5 rounded-lg border border-slate-250 font-bold transition-all flex items-center justify-center gap-1 cursor-pointer"
+                                            >
+                                              <Copy className="w-3.5 h-3.5" />
+                                              복사
+                                            </button>
+
+                                            <button
+                                              onClick={() => {
+                                                setMovingPromptId(p.id);
+                                                setMoveTargetDestination('shared');
+                                                setMoveTargetFolder(p.category || '미분류');
+                                              }}
+                                              className="bg-white hover:bg-slate-100 text-slate-700 text-[10px] py-1.5 rounded-lg border border-slate-250 font-bold transition-all flex items-center justify-center gap-1 cursor-pointer"
+                                            >
+                                              <FolderInput className="w-3 h-3 text-slate-500" />
+                                              이동
+                                            </button>
+                                            
+                                            <button
+                                              onClick={() => {
+                                                const alreadyInMyDrafts = savedUserPrompts.some(item => item.title === p.title);
+                                                if (alreadyInMyDrafts) {
+                                                  triggerToast('💡 이미 내 작업실 공간에 수납 보관되어 있습니다.');
+                                                  return;
+                                                }
+                                                setSavedUserPrompts(prev => [
+                                                  ...prev,
+                                                  {
+                                                    id: `converted-${p.id}`,
+                                                    title: p.title.replace('🍀 ', '').replace('🌟 [교사 공유] ', '').replace('🌟 [우수사례] ', ''),
+                                                    category: p.category as any,
+                                                    description: p.description,
+                                                    promptText: p.promptText,
+                                                    satisfaction: 95,
+                                                    runs: 12,
+                                                    tags: ['원문이식'],
+                                                    efficiency: 90,
+                                                    isHidden: false,
+                                                    createdAt: '2026-06-18'
+                                                  }
+                                                ]);
+                                                triggerToast('📥 [우리 원 보관함]의 지식이 내 작업실로 이식 수납되었습니다!');
+                                              }}
+                                              className="bg-slate-50 hover:bg-slate-100 text-slate-700 hover:text-slate-900 text-[10px] py-1.5 rounded-lg border border-slate-200 font-extrabold transition-all flex items-center justify-center gap-1 cursor-pointer"
+                                              title="내 보관함으로 복사 내려받기"
+                                            >
+                                              <span>수납</span>
+                                            </button>
+                                          </div>
+                                        </div>
+
+                                        {/* Inline Folder Selector Modal Overlay */}
+                                        {movingPromptId === p.id && (
+                                          <div className="absolute inset-0 bg-slate-900/95 rounded-2xl p-4 flex flex-col justify-between z-10 text-white animate-fade-in">
+                                            <div className="space-y-1 overflow-y-auto max-h-[75%] pr-1">
+                                              <span className="text-[10px] font-black uppercase text-purple-400 tracking-widest block flex items-center gap-1">
+                                                📂 폴더 이동 설정
+                                              </span>
+                                              <p className="text-[11px] text-slate-200 line-clamp-1 font-bold">📄 {p.title}</p>
+                                              
+                                              <label className="block text-[9px] font-bold text-slate-400 mt-1">이동할 대상 보관함:</label>
+                                              <select
+                                                value={moveTargetDestination}
+                                                onChange={(e) => {
+                                                  const nextDest = e.target.value as 'personal' | 'shared';
+                                                  setMoveTargetDestination(nextDest);
+                                                  setMoveTargetFolder('미분류');
+                                                }}
+                                                className="w-full text-[11px] bg-slate-800 border border-slate-700 rounded-lg px-2 py-1 text-white focus:outline-none focus:border-[#FF6B6B]"
+                                              >
+                                                <option value="personal">📂 내 보관함</option>
+                                                <option value="shared">🌐 우리 원 문서함</option>
+                                              </select>
+
+                                              <label className="block text-[9px] font-bold text-slate-400 mt-1">이동할 대상 폴더 선택:</label>
+                                              <select
+                                                value={moveTargetFolder}
+                                                onChange={(e) => setMoveTargetFolder(e.target.value)}
+                                                className="w-full text-[11px] bg-slate-800 border border-slate-700 rounded-lg px-2 py-1 text-white focus:outline-none focus:border-[#FF6B6B]"
+                                              >
+                                                {(moveTargetDestination === 'personal' ? personalFolders : sharedFolders).map(f => (
+                                                  <option key={f} value={f}>{f}</option>
+                                                ))}
+                                              </select>
+                                            </div>
+                                            <div className="flex gap-2 mt-2">
+                                              <button
+                                                type="button"
+                                                onClick={() => {
+                                                  if (moveTargetDestination === 'shared') {
+                                                    setSharedRepositoryPrompts(prev => prev.map(item => item.id === p.id ? { ...item, category: moveTargetFolder } : item));
+                                                  } else {
+                                                    setSharedRepositoryPrompts(prev => prev.filter(item => item.id !== p.id));
+                                                    const newSavedItem = {
+                                                      id: `personal-migrated-${Date.now()}`,
+                                                      title: p.title.replace('🍀 ', '').replace('🌟 [교사 공유] ', '').replace('🌟 [우수사례] ', '').replace('🌟 ', ''),
+                                                      category: moveTargetFolder,
+                                                      mainCategory: '반운영',
+                                                      description: p.description || '우리 원 보관함에서 이식된 프롬프트입니다.',
+                                                      promptText: p.promptText,
+                                                      canvasTemplate: p.promptText,
+                                                      tags: ['이식됨'],
+                                                      runs: 1,
+                                                      satisfaction: 99,
+                                                      efficiency: 100,
+                                                      isHidden: false,
+                                                      createdAt: new Date().toISOString().split('T')[0]
+                                                    };
+                                                    setSavedUserPrompts(prev => [newSavedItem, ...prev]);
+                                                  }
+                                                  triggerToast('선택하신 보관함으로 문서가 이동되었습니다.');
+                                                  setMovingPromptId(null);
+                                                }}
+                                                className="flex-1 bg-purple-500 hover:bg-purple-600 text-white text-[10px] font-bold py-1.5 rounded-lg transition-colors cursor-pointer"
+                                              >
+                                                이동 완료
+                                              </button>
+                                              <button
+                                                type="button"
+                                                onClick={() => {
+                                                  setMovingPromptId(null);
+                                                }}
+                                                className="flex-1 bg-slate-700 hover:bg-slate-600 text-slate-200 text-[10px] font-bold py-1.5 rounded-lg transition-colors cursor-pointer"
+                                              >
+                                                취소
+                                              </button>
+                                            </div>
+                                          </div>
+                                        )}
+                                      </div>
+                                    );
+                                  }
+                                })}
+                              </div>
+                            </div>
+                          );
+                        })()
+                      ) : archiveTab === 'personal' ? (
                         /* Case A: Personal Documents Grid */
                         (() => {
                           const filtered = savedUserPrompts
@@ -4579,8 +4940,8 @@ export default function App() {
                             return (
                               <div className="p-12 text-center text-slate-450 space-y-2 pt-20 bg-white rounded-2xl border border-dashed border-slate-200" key="empty-pocket">
                                 <HelpCircle className="w-8 h-8 text-slate-300 mx-auto" />
-                                <p className="text-xs font-black w-full text-center">이 조건 및 폴더 위치 내에서 검색 결안된 보관 초안이 없습니다.</p>
-                                <p className="text-[10px] text-slate-405 leading-relaxed">다른 폴더를 탐색하거나 검색 키워드를 조정해 주십시오.</p>
+                                <p className="text-xs font-black w-full text-center">보관된 프롬프트가 없습니다.</p>
+                                <p className="text-[10px] text-slate-405 leading-relaxed">검색어를 변경하거나, 캔버스에서 새로운 프롬프트를 저장해 보세요.</p>
                               </div>
                             );
                           }
@@ -4597,12 +4958,12 @@ export default function App() {
                                       e.dataTransfer.setData('text/plain', p.id);
                                     }}
                                     onDragEnd={() => setIsDraggingCard(false)}
-                                    className="bg-slate-50 rounded-2xl p-4 border border-slate-200 hover:border-[#FF6B6B] transition-all relative group flex flex-col justify-between cursor-grab active:cursor-grabbing hover:shadow-sm"
+                                    className="bg-slate-50 rounded-2xl p-4 border border-slate-200 hover:border-[#FF6B6B] transition-all relative group flex flex-col justify-between cursor-grab active:cursor-grabbing hover:shadow-sm overflow-hidden"
                                   >
                                     <div>
                                       <div className="flex items-center justify-between mb-1.5">
                                         <span className="text-[9px] bg-white text-slate-550 px-2 py-0.5 rounded-full border border-slate-200 font-bold">
-                                          {p.category}
+                                          내 보관함
                                         </span>
                                         <button
                                           onClick={() => removeFromDrawerMyPocket(p.id)}
@@ -4628,30 +4989,108 @@ export default function App() {
                                         className="w-full bg-[#FF6B6B] hover:bg-[#fa5353] text-[10px] text-white py-2 rounded-lg font-bold transition-all flex items-center justify-center gap-1 shadow-xs cursor-pointer text-center"
                                       >
                                         <Check className="w-3.5 h-3.5" />
-                                        이 템플릿 연동 조립
+                                        템플릿 선택
                                       </button>
                                       
-                                      <div className="grid grid-cols-2 gap-2">
+                                      <div className="w-full grid grid-cols-2 gap-2">
                                         <button
                                           onClick={(e) => copyAndOpenExternalAI(p.promptText, e)}
-                                          className="bg-white hover:bg-slate-100 text-slate-700 hover:text-[#001C3D] text-[10px] py-1.5 rounded-lg border border-slate-250 font-bold transition-all flex items-center justify-center gap-1 cursor-pointer"
+                                          className="w-full bg-white hover:bg-slate-100 text-slate-700 hover:text-[#001C3D] text-[10px] py-1.5 rounded-lg border border-slate-250 font-bold transition-all flex items-center justify-center gap-1 cursor-pointer"
                                         >
                                           <Copy className="w-3.5 h-3.5" />
                                           복사
                                         </button>
-                                        
-                                        {/* 📁 공유하기 Button */}
+
                                         <button
-                                          onClick={(e) => promoteToSharedRepository(p, e.clientX, e.clientY)}
-                                          className="bg-blue-50 hover:bg-blue-100 text-blue-600 hover:text-blue-700 text-[10px] py-1.5 rounded-lg border border-blue-200 font-extrabold transition-all flex items-center justify-center gap-1 cursor-pointer"
-                                          title="우리 원 문서함으로 전도하기"
-                                          id={`promote-btn-${p.id}`}
+                                          onClick={() => {
+                                            setMovingPromptId(p.id);
+                                            setMoveTargetDestination('personal');
+                                            setMoveTargetFolder(p.category || '미분류');
+                                          }}
+                                          className="w-full bg-white hover:bg-slate-100 text-slate-700 hover:text-[#001C3D] text-[10px] py-1.5 rounded-lg border border-slate-250 font-bold transition-all flex items-center justify-center gap-1 cursor-pointer"
                                         >
-                                          <Globe className="w-3.5 h-3.5 text-blue-500" />
-                                          공유하기
+                                          <FolderInput className="w-3.5 h-3.5 text-slate-500" />
+                                          이동
                                         </button>
                                       </div>
                                     </div>
+
+                                    {/* Inline Folder Selector Modal Overlay */}
+                                    {movingPromptId === p.id && (
+                                      <div className="absolute inset-0 bg-slate-900/95 rounded-2xl p-4 flex flex-col justify-between z-10 text-white animate-fade-in">
+                                        <div className="space-y-1 overflow-y-auto max-h-[75%] pr-1">
+                                          <span className="text-[10px] font-black uppercase text-[#FF6B6B] tracking-widest block flex items-center gap-1">
+                                            📂 폴더 이동 설정
+                                          </span>
+                                          <p className="text-[11px] text-slate-200 line-clamp-1 font-bold">📄 {p.title}</p>
+                                          
+                                          <label className="block text-[9px] font-bold text-slate-400 mt-1">이동할 대상 보관함:</label>
+                                          <select
+                                            value={moveTargetDestination}
+                                            onChange={(e) => {
+                                              const nextDest = e.target.value as 'personal' | 'shared';
+                                              setMoveTargetDestination(nextDest);
+                                              setMoveTargetFolder('미분류');
+                                            }}
+                                            className="w-full text-[11px] bg-slate-800 border border-slate-700 rounded-lg px-2 py-1 text-white focus:outline-none focus:border-[#FF6B6B]"
+                                          >
+                                            <option value="personal">📂 내 보관함</option>
+                                            <option value="shared">🌐 우리 원 문서함</option>
+                                          </select>
+
+                                          <label className="block text-[9px] font-bold text-slate-400 mt-1">이동할 대상 폴더 선택:</label>
+                                          <select
+                                            value={moveTargetFolder}
+                                            onChange={(e) => setMoveTargetFolder(e.target.value)}
+                                            className="w-full text-[11px] bg-slate-800 border border-slate-700 rounded-lg px-2 py-1 text-white focus:outline-none focus:border-[#FF6B6B]"
+                                          >
+                                            {(moveTargetDestination === 'personal' ? personalFolders : sharedFolders).map(f => (
+                                              <option key={f} value={f}>{f}</option>
+                                            ))}
+                                          </select>
+                                        </div>
+                                        <div className="flex gap-2 mt-2">
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              if (moveTargetDestination === 'personal') {
+                                                setSavedUserPrompts(prev => prev.map(item => item.id === p.id ? { ...item, category: moveTargetFolder } : item));
+                                              } else {
+                                                setSavedUserPrompts(prev => prev.filter(item => item.id !== p.id));
+                                                const newSharedItem = {
+                                                  id: `shared-migrated-${Date.now()}`,
+                                                  title: p.title.startsWith('🌟') ? p.title : `🌟 [우수사례] ${p.title}`,
+                                                  category: moveTargetFolder,
+                                                  description: p.description || '내 보관함에서 이식된 프롬프트입니다.',
+                                                  promptText: p.promptText,
+                                                  type: '우수 사례' as const,
+                                                  author: '전소은 교사',
+                                                  downloads: 0,
+                                                  sharedDate: new Date().toISOString().split('T')[0],
+                                                  status: '분류됨' as const,
+                                                  isPinned: false
+                                                };
+                                                setSharedRepositoryPrompts(prev => [newSharedItem, ...prev]);
+                                              }
+                                              triggerToast('선택하신 보관함으로 문서가 이동되었습니다.');
+                                              setMovingPromptId(null);
+                                            }}
+                                            className="flex-1 bg-[#FF6B6B] hover:bg-[#fa5353] text-white text-[10px] font-bold py-1.5 rounded-lg transition-colors cursor-pointer"
+                                          >
+                                            이동 완료
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              setMovingPromptId(null);
+                                            }}
+                                            className="flex-1 bg-slate-700 hover:bg-slate-600 text-slate-200 text-[10px] font-bold py-1.5 rounded-lg transition-colors cursor-pointer"
+                                          >
+                                            취소
+                                          </button>
+                                        </div>
+                                      </div>
+                                    )}
                                   </div>
                                 ))}
                               </div>
@@ -4680,6 +5119,8 @@ export default function App() {
                             </div>
                           );
                         })()
+
+
                   ) : (
                     /* --- B. SHARED REPOSITORY (우리 원 문서함) --- */
                     sharedRepositoryPrompts.filter(item => sharedFilter === '전체' ? true : item.type === sharedFilter).length === 0 ? (
@@ -4781,13 +5222,25 @@ export default function App() {
                                   이 공유 템플릿 연동 조립
                                 </button>
                                 
-                                <div className="grid grid-cols-2 gap-2">
+                                <div className="grid grid-cols-3 gap-1.5">
                                   <button
                                     onClick={(e) => copyAndOpenExternalAI(p.promptText, e)}
                                     className="bg-white hover:bg-slate-100 text-slate-700 text-[10px] py-1.5 rounded-lg border border-slate-250 font-bold transition-all flex items-center justify-center gap-1 cursor-pointer"
                                   >
-                                    <Copy className="w-3.5 h-3.5" />
+                                    <Copy className="w-3 h-3" />
                                     복사
+                                  </button>
+
+                                  <button
+                                    onClick={() => {
+                                      setMovingPromptId(p.id);
+                                      setMoveTargetDestination('shared');
+                                      setMoveTargetFolder(p.category || '미분류');
+                                    }}
+                                    className="bg-white hover:bg-slate-100 text-slate-700 text-[10px] py-1.5 rounded-lg border border-slate-250 font-bold transition-all flex items-center justify-center gap-1 cursor-pointer"
+                                  >
+                                    <FolderInput className="w-3 h-3 text-slate-500" />
+                                    이동
                                   </button>
                                   
                                   {/* Bidirectional Download to Personal Workspace */}
@@ -4814,15 +5267,92 @@ export default function App() {
                                           createdAt: '2026-06-18'
                                         }
                                       ]);
-                                      triggerToast('📥 [우리 원 문서함]의 지식이 내 작업실로 이식 수납되었습니다!');
+                                      triggerToast('📥 [우리 원 보관함]의 지식이 내 작업실로 이식 수납되었습니다!');
                                     }}
                                     className="bg-slate-50 hover:bg-slate-100 text-slate-700 hover:text-slate-900 text-[10px] py-1.5 rounded-lg border border-slate-200 font-extrabold transition-all flex items-center justify-center gap-1 cursor-pointer"
                                     title="내 보관함으로 복사 내려받기"
                                   >
-                                    <span>📥 내 작업실 수납</span>
+                                    <span>수납</span>
                                   </button>
                                 </div>
                               </div>
+
+                              {/* Inline Folder Selector Modal Overlay */}
+                              {movingPromptId === p.id && (
+                                <div className="absolute inset-0 bg-slate-900/95 rounded-2xl p-4 flex flex-col justify-between z-10 text-white animate-fade-in">
+                                  <div className="space-y-1 overflow-y-auto max-h-[75%] pr-1">
+                                    <span className="text-[10px] font-black uppercase text-purple-400 tracking-widest block flex items-center gap-1">
+                                      📂 폴더 이동 설정
+                                    </span>
+                                    <p className="text-[11px] text-slate-200 line-clamp-1 font-bold">📄 {p.title}</p>
+                                    
+                                    <label className="block text-[9px] font-bold text-slate-400 mt-1">이동할 대상 보관함:</label>
+                                    <select
+                                      value={moveTargetDestination}
+                                      onChange={(e) => {
+                                        const nextDest = e.target.value as 'personal' | 'shared';
+                                        setMoveTargetDestination(nextDest);
+                                        setMoveTargetFolder('미분류');
+                                      }}
+                                      className="w-full text-[11px] bg-slate-800 border border-slate-700 rounded-lg px-2 py-1 text-white focus:outline-none focus:border-[#FF6B6B]"
+                                    >
+                                      <option value="personal">📂 내 보관함</option>
+                                      <option value="shared">🌐 우리 원 문서함</option>
+                                    </select>
+
+                                    <label className="block text-[9px] font-bold text-slate-400 mt-1">이동할 대상 폴더 선택:</label>
+                                    <select
+                                      value={moveTargetFolder}
+                                      onChange={(e) => setMoveTargetFolder(e.target.value)}
+                                      className="w-full text-[11px] bg-slate-800 border border-slate-700 rounded-lg px-2 py-1 text-white focus:outline-none focus:border-[#FF6B6B]"
+                                    >
+                                      {(moveTargetDestination === 'personal' ? personalFolders : sharedFolders).map(f => (
+                                        <option key={f} value={f}>{f}</option>
+                                      ))}
+                                    </select>
+                                  </div>
+                                  <div className="flex gap-2 mt-2">
+                                    <button
+                                      onClick={() => {
+                                        if (moveTargetDestination === 'shared') {
+                                          setSharedRepositoryPrompts(prev => prev.map(item => item.id === p.id ? { ...item, category: moveTargetFolder } : item));
+                                        } else {
+                                          setSharedRepositoryPrompts(prev => prev.filter(item => item.id !== p.id));
+                                          const newSavedItem = {
+                                            id: `personal-migrated-${Date.now()}`,
+                                            title: p.title.replace('🍀 ', '').replace('🌟 [교사 공유] ', '').replace('🌟 [우수사례] ', '').replace('🌟 ', ''),
+                                            category: moveTargetFolder,
+                                            mainCategory: '반운영',
+                                            description: p.description || '우리 원 보관함에서 이식된 프롬프트입니다.',
+                                            promptText: p.promptText,
+                                            canvasTemplate: p.promptText,
+                                            tags: ['이식됨'],
+                                            runs: 1,
+                                            satisfaction: 99,
+                                            efficiency: 100,
+                                            isHidden: false,
+                                            createdAt: new Date().toISOString().split('T')[0]
+                                          };
+                                          setSavedUserPrompts(prev => [newSavedItem, ...prev]);
+                                        }
+                                        triggerToast('선택하신 보관함으로 문서가 이동되었습니다.');
+                                        setMovingPromptId(null);
+                                      }}
+                                      className="flex-1 bg-purple-500 hover:bg-purple-600 text-white text-[10px] font-bold py-1.5 rounded-lg transition-colors cursor-pointer"
+                                    >
+                                      이동 완료
+                                    </button>
+                                    <button
+                                      onClick={() => {
+                                        setMovingPromptId(null);
+                                      }}
+                                      className="flex-1 bg-slate-700 hover:bg-slate-600 text-slate-200 text-[10px] font-bold py-1.5 rounded-lg transition-colors cursor-pointer"
+                                    >
+                                      취소
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           ))}
                       </div>
@@ -4832,11 +5362,7 @@ export default function App() {
               </div>
             </div>
 
-            {/* Cabinet Foot banner */}
-            <div className="p-4 bg-slate-50 border-t border-slate-100 text-[11px] text-slate-500">
-              <p className="font-bold text-slate-700 mb-1">💡 보관 공간 안내</p>
-              <p className="leading-snug">본 교사실 전산 공간은 사설 초안(내 작업실)과 공용 서식(우리 원 문서함)으로 삼중 가드 처리되어 우수한 교양과 지식이 누실되지 않게 실시간 전산 전수 동기화됩니다.</p>
-            </div>
+
           </motion.div>
         </div>
       </div>
@@ -5323,7 +5849,7 @@ export default function App() {
                 <div className="flex items-center gap-2">
                   <div className="w-2.5 h-2.5 rounded-full bg-[#FF6B6B] animate-ping"></div>
                   <h3 className="sys-heading-sub font-sans flex items-center gap-1.5">
-                    <Save className="w-4 h-4 text-emerald-400" /> [메가 프롬프트] 보관함 저장 설정
+                    <Save className="w-4 h-4 text-emerald-400" /> 보관함 저장
                   </h3>
                 </div>
                 <button
@@ -5670,6 +6196,298 @@ export default function App() {
                       }
                       setIsSaveModalOpen(false);
                       triggerParticles(['💖', '✨', '⭐', '🎈', '💾'], e.clientX, e.clientY);
+                    }}
+                    className="px-5 py-2 text-xs font-extrabold text-white bg-gradient-to-r from-[#FF6B6B] to-rose-500 hover:from-rose-500 hover:to-rose-600 rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer flex items-center gap-1.5"
+                  >
+                    <Check className="w-4 h-4" /> 저장 완료
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ==============================================================
+          G-2. CANVAS SAVE DESTINATION MODAL WINDOW (프롬프트 캔버스 저장)
+          ============================================================== */}
+      <AnimatePresence>
+        {isCanvasSaveModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 0.5 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsCanvasSaveModalOpen(false)}
+              className="fixed inset-0 bg-slate-900"
+            />
+
+            {/* Modal Body */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white rounded-3xl overflow-hidden shadow-2xl max-w-lg w-full z-10 border border-slate-200"
+            >
+              {/* Head */}
+              <div className="bg-[#001C3D] text-white px-6 py-4 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-2.5 h-2.5 rounded-full bg-[#FF6B6B] animate-ping"></div>
+                  <h3 className="sys-heading-sub font-sans flex items-center gap-1.5">
+                    <Save className="w-4 h-4 text-emerald-400" /> 프롬프트 보관
+                  </h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsCanvasSaveModalOpen(false)}
+                  className="p-1 px-2 hover:bg-white/10 rounded-lg text-slate-300 hover:text-white transition-colors cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Form Input Container */}
+              <div className="p-6 space-y-5">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">
+                    프롬프트 제목 컨펌 및 수정
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={canvasSaveTitle}
+                    onChange={(e) => setCanvasSaveTitle(e.target.value)}
+                    placeholder="저장할 프롬프트 제목을 입력하세요."
+                    className="w-full text-xs font-semibold border border-slate-200 rounded-xl px-3 py-2.5 bg-slate-50/50 hover:bg-slate-50 focus:bg-white focus:outline-none focus:border-[#FF6B6B] focus:ring-1 focus:ring-[#FF6B6B] transition-all"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2.5">
+                    저장소 목적지 선택
+                  </label>
+                  <div className="grid grid-cols-2 gap-3">
+                    {/* Option 1: 개인 내 보관함 */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCanvasSaveDestination('personal');
+                        setCanvasSaveSelectedFolder('미분류');
+                        setIsCanvasSaveCreatingNewFolder(false);
+                        setCanvasSaveNewFolderName('');
+                      }}
+                      className={`p-4 rounded-2xl border text-left transition-all flex flex-col gap-1.5 cursor-pointer ${
+                        canvasSaveDestination === 'personal'
+                          ? 'border-[#FF6B6B] bg-rose-50/20 shadow-md ring-1 ring-[#FF6B6B]'
+                          : 'border-slate-200 hover:border-slate-300 bg-white'
+                      }`}
+                    >
+                      <div className="flex items-center gap-1.5">
+                        <Folder className="w-4 h-4 text-[#FFB6B6]" />
+                        <span className="text-xs font-extrabold text-slate-800">📂 내 보관함</span>
+                      </div>
+                      <span className="text-[10px] text-slate-400 font-normal leading-normal">
+                        나만 볼 수 있는 임시 초안 보관 드로어에 안전하게 수납합니다.
+                      </span>
+                    </button>
+
+                    {/* Option 2: 우리 원 보관함 */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCanvasSaveDestination('shared');
+                        setCanvasSaveSelectedFolder('미분류');
+                        setIsCanvasSaveCreatingNewFolder(false);
+                        setCanvasSaveNewFolderName('');
+                      }}
+                      className={`p-4 rounded-2xl border text-left transition-all flex flex-col gap-1.5 cursor-pointer ${
+                        canvasSaveDestination === 'shared'
+                          ? 'border-purple-500 bg-purple-50/20 shadow-md ring-1 ring-purple-500'
+                          : 'border-slate-200 hover:border-slate-300 bg-white'
+                      }`}
+                    >
+                      <div className="flex items-center gap-1.5">
+                        <Globe className="w-4 h-4 text-purple-400" />
+                        <span className="text-xs font-extrabold text-slate-800">🌐 우리 원 보관함</span>
+                      </div>
+                      <span className="text-[10px] text-slate-400 font-normal leading-normal">
+                        어린이집 소속 동료 교사 전원과 우수 교지 자산으로 공유합니다.
+                      </span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* --- 폴더 분류 (Folder Organization) --- */}
+                <div className="bg-slate-50/50 p-4 rounded-2xl border border-slate-200/60 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest">
+                      📂 폴더 분류 (Folder Organization)
+                    </label>
+                    {!isCanvasSaveCreatingNewFolder && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsCanvasSaveCreatingNewFolder(true);
+                          setCanvasSaveNewFolderName('');
+                        }}
+                        className="text-[10px] font-extrabold text-[#FF6B6B] hover:text-rose-600 flex items-center gap-1 cursor-pointer transition-colors"
+                      >
+                        <Plus className="w-3 h-3" /> [+ 새 폴더 만들기]
+                      </button>
+                    )}
+                  </div>
+
+                  {isCanvasSaveCreatingNewFolder ? (
+                    <motion.div
+                      initial={{ opacity: 0, y: -5 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="bg-white border border-rose-200 rounded-xl p-3 space-y-2.5 shadow-sm"
+                    >
+                      <div className="text-[10px] font-black text-[#FF6B6B] flex items-center gap-1">
+                        ✨ 새 {canvasSaveDestination === 'personal' ? '개인 보관' : '우리 원'} 폴더 이름 지정
+                      </div>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={canvasSaveNewFolderName}
+                          onChange={(e) => setCanvasSaveNewFolderName(e.target.value)}
+                          placeholder="새 폴더 이름을 입력하세요"
+                          className="flex-1 text-xs font-semibold border border-slate-200 bg-slate-50/30 rounded-xl px-2.5 py-1.5 focus:outline-none focus:border-[#FF6B6B] focus:ring-1 focus:ring-[#FF6B6B]"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const trimmed = canvasSaveNewFolderName.trim();
+                            if (!trimmed) {
+                              triggerToast('⚠️ 폴더 이름을 입력해 주세요.');
+                              return;
+                            }
+                            if (canvasSaveDestination === 'personal') {
+                              if (personalFolders.includes(trimmed)) {
+                                triggerToast('⚠️ 이미 존재하는 폴더 이름입니다.');
+                                  return;
+                              }
+                              setPersonalFolders(prev => [...prev, trimmed]);
+                              setCanvasSaveSelectedFolder(trimmed);
+                              triggerToast(`📂 새 개인 보관 폴더 [${trimmed}]가 신설되었습니다.`);
+                            } else {
+                              if (sharedFolders.includes(trimmed)) {
+                                triggerToast('⚠️ 이미 존재하는 폴더 이름입니다.');
+                                return;
+                              }
+                              setSharedFolders(prev => [...prev, trimmed]);
+                              setCanvasSaveSelectedFolder(trimmed);
+                              triggerToast(`🌐 새 원 문서공유 폴더 [${trimmed}]가 신설되었습니다.`);
+                            }
+                            setIsCanvasSaveCreatingNewFolder(false);
+                            setCanvasSaveNewFolderName('');
+                          }}
+                          className="bg-[#FF6B6B] hover:bg-rose-600 text-[10.5px] text-white font-black px-3.5 py-1.5 rounded-xl cursor-pointer transition-all"
+                        >
+                          만들기
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsCanvasSaveCreatingNewFolder(false);
+                            setCanvasSaveNewFolderName('');
+                          }}
+                          className="bg-slate-100 hover:bg-slate-200 text-slate-500 text-[10.5px] font-bold px-3 py-1.5 rounded-xl cursor-pointer transition-all"
+                        >
+                          취소
+                        </button>
+                      </div>
+                    </motion.div>
+                  ) : (
+                    <div className="space-y-1.5 max-h-[160px] overflow-y-auto pr-1">
+                      {(canvasSaveDestination === 'personal' ? personalFolders : sharedFolders).map(folder => {
+                        const isLocked = lockedFolders[folder];
+                        return (
+                          <div
+                            key={folder}
+                            onClick={() => {
+                              setCanvasSaveSelectedFolder(folder);
+                            }}
+                            className={`flex items-center justify-between p-2.5 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
+                              canvasSaveSelectedFolder === folder
+                                ? canvasSaveDestination === 'personal'
+                                  ? 'bg-rose-50/70 border-rose-200 text-rose-700'
+                                  : 'bg-indigo-50/70 border-indigo-200 text-indigo-700'
+                                : 'bg-white border-slate-200 text-slate-755 hover:bg-slate-50'
+                            }`}
+                          >
+                            <div className="flex-1 flex items-center gap-2">
+                              <span>{isLocked ? '🔒' : '📁'}</span>
+                              <span className={canvasSaveSelectedFolder === folder ? 'font-black' : ''}>
+                                {folder} {folder === '미분류' && '(기본값)'}
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                <div className="pt-2 flex justify-end gap-2 border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => setIsCanvasSaveModalOpen(false)}
+                    className="px-4 py-2 text-xs font-semibold text-slate-500 bg-slate-100 hover:bg-slate-200 rounded-xl transition-all cursor-pointer"
+                  >
+                    취소
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      if (!canvasSaveTitle.trim()) {
+                        triggerToast('⚠️ 저장할 프롬프트 제목을 입력해 주세요.');
+                        return;
+                      }
+
+                      if (canvasSaveDestination === 'personal') {
+                        const newSavedItem: PromptTemplate = {
+                          id: `canvas-saved-${Date.now()}`,
+                          title: canvasSaveTitle,
+                          category: canvasSaveSelectedFolder,
+                          mainCategory: selectedTemplate?.mainCategory || '반운영',
+                          description: selectedTemplate?.description || '프롬프트 캔버스에서 직접 저장한 항목입니다.',
+                          promptText: canvasText,
+                          canvasTemplate: canvasText,
+                          tags: selectedTemplate?.tags || [],
+                          runs: 1,
+                          satisfaction: 99,
+                          efficiency: 100,
+                          isHidden: false,
+                          createdAt: new Date().toISOString().split('T')[0]
+                        };
+                        setSavedUserPrompts(prev => [newSavedItem, ...prev]);
+                        triggerToast(`💾 내 보관함의 [${canvasSaveSelectedFolder}] 폴더에 성공적으로 수납 완료되었습니다!`);
+                      } else {
+                        const newSharedItem = {
+                          id: `shared-canvas-${Date.now()}`,
+                          title: `🌟 [우수사례] ${canvasSaveTitle}`,
+                          category: canvasSaveSelectedFolder,
+                          description: selectedTemplate?.description || '프롬프트 캔버스에서 직접 공유한 항목입니다.',
+                          promptText: canvasText,
+                          type: '우수 사례' as const,
+                          author: '전소은 교사',
+                          downloads: 0,
+                          sharedDate: new Date().toISOString().split('T')[0],
+                          status: '미분류' as const,
+                          isPinned: false
+                        };
+                        setSharedRepositoryPrompts(prev => [newSharedItem, ...prev]);
+                        triggerToast(`🌐 우리 원 보관함의 [${canvasSaveSelectedFolder}] 폴더에 지식 공유 기여 완료되었습니다!`);
+                      }
+
+                      setIsCanvasSaveModalOpen(false);
+                      setCanvasSavedFeedback(true);
+                      triggerParticles(['💖', '✨', '💾'], e.clientX, e.clientY);
+                      setTimeout(() => {
+                        setCanvasSavedFeedback(false);
+                      }, 2500);
                     }}
                     className="px-5 py-2 text-xs font-extrabold text-white bg-gradient-to-r from-[#FF6B6B] to-rose-500 hover:from-rose-500 hover:to-rose-600 rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer flex items-center gap-1.5"
                   >
