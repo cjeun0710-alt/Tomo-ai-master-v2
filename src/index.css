@@ -16,13 +16,25 @@
 }
 
 /* Custom styles for professional smooth scrolling and layout */
-html {
-  scroll-behavior: smooth;
+html,
+body,
+#root {
+  height: 100vh;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
 }
 
 /* Rounded, friendly styling details */
 body {
   font-family: var(--font-sans);
+  background-color: #F5F7FA;
+  color: #141414;
 }
 
 .font-rounded {
@@ -67,55 +79,55 @@ body {
    GLOBAL STANDARDIZED TYPOGRAPHY ENGINE
    ========================================== */
 
-/* 1. Basic Body text (15px) */
+/* 1. Basic Body text (14px) */
 .sys-body,
 textarea.sys-body,
 input.sys-body,
 pre.sys-body {
-  font-size: 15px !important;
-  line-height: 1.6 !important;
+  font-size: 14px !important;
+  line-height: 1.55 !important;
 }
 
-/* 2. Main Title / Page Headers (24px) */
+/* 2. Main Title / Page Headers (20px) */
 .sys-heading-main {
-  font-size: 24px !important;
+  font-size: 20px !important;
   font-weight: 850 !important;
-  letter-spacing: -0.025em !important;
-  line-height: 1.3 !important;
+  letter-spacing: -0.02em !important;
+  line-height: 1.35 !important;
 }
 
-/* 3. Sub headings / Card & Modal Titles (17px) */
+/* 3. Sub headings / Card & Modal Titles (15px) */
 .sys-heading-sub {
-  font-size: 17px !important;
+  font-size: 15px !important;
   font-weight: 750 !important;
-  letter-spacing: -0.02em !important;
+  letter-spacing: -0.015em !important;
   line-height: 1.4 !important;
 }
 
-/* 4. Column / Section Small Header (14px) */
+/* 4. Column / Section Small Header (13px) */
 .sys-heading-sm {
-  font-size: 14px !important;
+  font-size: 13px !important;
   font-weight: 705 !important;
   letter-spacing: -0.015em !important;
 }
 
-/* 5. Standard Interactive Buttons (13.5px) */
+/* 5. Standard Interactive Buttons (12.5px) */
 .sys-button {
-  font-size: 13.5px !important;
+  font-size: 12.5px !important;
   font-weight: 750 !important;
   letter-spacing: -0.01em !important;
 }
 
-/* 6. Info Captions & Small Descriptions (12px) */
+/* 6. Info Captions & Small Descriptions (11.5px) */
 .sys-caption {
-  font-size: 12px !important;
+  font-size: 11.5px !important;
   line-height: 1.45 !important;
   font-weight: 505 !important;
 }
 
-/* 7. Tags, Badges & Chips (11px) */
+/* 7. Tags, Badges & Chips (10.5px) */
 .sys-tag {
-  font-size: 11px !important;
+  font-size: 10.5px !important;
   font-weight: 800 !important;
   letter-spacing: 0.02em !important;
 }

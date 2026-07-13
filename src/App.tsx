@@ -488,6 +488,7 @@ export default function App() {
   const [activeTagIndex, setActiveTagIndex] = useState<number | null>(null);
   const [activeTagValue, setActiveTagValue] = useState<string>('');
   const [isTagCopied, setIsTagCopied] = useState<boolean>(false);
+  const [isHoveringPanel, setIsHoveringPanel] = useState<boolean>(false);
   const [isPromptCopied, setIsPromptCopied] = useState<boolean>(false);
   const [lastCopiedTagValue, setLastCopiedTagValue] = useState<string | null>(null);
 
@@ -1274,6 +1275,15 @@ export default function App() {
     }
   };
 
+  const handleTagUpdateWithoutClosing = (indexToUpdate: number, newVal: string) => {
+    const parts = splitBySmartTags(canvasText);
+    if (indexToUpdate >= 0 && indexToUpdate < parts.length) {
+      parts[indexToUpdate] = `{${newVal}}`;
+      const updated = parts.join('');
+      setCanvasText(updated);
+    }
+  };
+
   const checkIfTagIsCopyable = (tagIndex: number | null) => {
     if (tagIndex === null || tagIndex === undefined) return false;
     const parts = splitBySmartTags(canvasText);
@@ -1305,6 +1315,22 @@ export default function App() {
       return lastCopiedTagValue;
     }
     return assembledMegaPrompt;
+  };
+
+  const handleCopyActiveTagText = (e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    console.log("🔥하단 단독 복사 실행됨", activeTagValue);
+    const systemGuidance = (selectedTemplate?.systemGuidance || '').trim();
+    const textToCopy = systemGuidance
+      ? `${systemGuidance}\n\n[현재 페이지 상세 요청]\n${activeTagValue}`
+      : `[현재 페이지 상세 요청]\n${activeTagValue}`;
+    navigator.clipboard.writeText(textToCopy);
+    setLastCopiedTagValue(activeTagValue);
+    setIsTagCopied(true);
+    triggerToast('📄 입력창의 현재 텍스트가 클립보드에 복사되었습니다.');
   };
 
   const handleActiveDomainChange = (domain: 'TEXT' | 'DESIGN') => {
@@ -1897,7 +1923,7 @@ export default function App() {
   }
 
   return (
-    <div className={`min-h-screen flex flex-col font-sans transition-colors duration-500 selection:bg-[#FF6B6B]/20 ${
+    <div className={`h-screen overflow-hidden flex flex-col font-sans transition-colors duration-500 selection:bg-[#FF6B6B]/20 ${
       isAdminMode ? 'bg-[#F5F7FA] text-slate-800' : 'bg-[#FAF8F5] text-[#141414]'
     }`} id="tomo-root-container">
       
@@ -2003,17 +2029,17 @@ export default function App() {
       </header>
 
       {/* RENDER BODY BASED ON SELECTED MODE */}
-      <div className="flex flex-1 pt-16 min-h-screen">
+      <div className="flex flex-1 pt-16 h-screen overflow-hidden" id="tomo-main-body-container">
         
         {/* ==============================================================
             A. TEACHER MODE (교사 모드): 좌측 간량 가이드바 + 3단계 Wizard 캠퍼스
             ============================================================== */}
         {!isAdminMode ? (
-          <div className="flex-1 flex" id="teacher-interactive-workspace">
+          <div className="flex-1 flex overflow-hidden h-full" id="teacher-interactive-workspace">
             
             {/* Left Sidebar Menu Navigation */}
             <aside
-              className="w-64 bg-[#001C3D] text-slate-300 pointer-events-auto shrink-0 flex flex-col justify-between select-none shadow-lg border-r border-[#0d2a4d]"
+              className="w-64 bg-[#001C3D] text-slate-300 pointer-events-auto shrink-0 flex flex-col justify-between select-none shadow-lg border-r border-[#0d2a4d] h-full overflow-y-auto"
               id="teacher-global-sidebar"
             >
               <div className="flex flex-col">
@@ -2145,7 +2171,7 @@ export default function App() {
               </aside>
 
               {/* Main Interactive Canvas Center */}
-              <main className="flex-1 p-8 overflow-y-auto" id="teacher-canvas-viewport">
+              <main className="flex-1 p-6 overflow-y-auto h-full" id="teacher-canvas-viewport">
                 
 
 
@@ -2166,7 +2192,7 @@ export default function App() {
                     </div>
 
                     {/* Top Search & Filter Area */}
-                    <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm space-y-4">
+                    <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm space-y-4">
                     {/* Full width search bar */}
                     <div className="relative w-full">
                       <Search className="w-5 h-5 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
@@ -2330,7 +2356,7 @@ export default function App() {
                         <div
                           key={p.id}
                           onClick={() => selectTemplateAndGoToCanvas(p)}
-                          className="bg-white rounded-3xl border border-slate-150 p-5 shadow-sm hover:shadow-md hover:border-[#FF6B6B]/40 cursor-pointer transition-all duration-200 flex flex-col justify-between relative"
+                          className="bg-white rounded-2xl border border-slate-150 p-4 shadow-sm hover:shadow-md hover:border-[#FF6B6B]/40 cursor-pointer transition-all duration-200 flex flex-col justify-between relative"
                         >
                           <div>
                             {/* Banner row */}
@@ -2387,7 +2413,7 @@ export default function App() {
               {/* --- STEP 2: PROMPT CANVAS (7:3 split layout) --- */}
               {wizardStep === 2 && (
                 !selectedTemplate ? (
-                  <div className="min-h-[450px] flex flex-col items-center justify-center bg-white rounded-3xl p-8 border border-slate-200/80 shadow-md text-center">
+                  <div className="min-h-[350px] flex flex-col items-center justify-center bg-white rounded-2xl p-6 border border-slate-200/80 shadow-md text-center">
                     <div className="w-16 h-16 bg-rose-50 text-[#FF6B6B] rounded-full flex items-center justify-center mb-6">
                       <Sliders className="w-8 h-8" />
                     </div>
@@ -2422,7 +2448,7 @@ export default function App() {
                   <div className="grid grid-cols-1 lg:grid-cols-10 gap-6">
                     
                     {/* Center: Mega Canvas - Expanded to col-span-8 to occupy more space */}
-                    <div className="lg:col-span-8 bg-white rounded-3xl p-6 border border-slate-200/80 shadow-md flex flex-col space-y-4">
+                    <div className="lg:col-span-8 bg-white rounded-2xl p-4.5 border border-slate-200/80 shadow-md flex flex-col space-y-4">
                       
                       {/* Version Sync Banner */}
                       {versionControlEnabled && selectedTemplate && (templateVersions[selectedTemplate.id] || 1) > selectedTemplateWorkingVersion && (
@@ -2481,13 +2507,11 @@ export default function App() {
                           <button
                             type="button"
                             onClick={(e) => {
-                              const combinedPrompt = assembledMegaPrompt;
-                              navigator.clipboard.writeText(combinedPrompt);
+                              e.preventDefault();
+                              e.stopPropagation();
                               window.open('https://chatgpt.com', '_blank');
-                              
-                              triggerParticles(['🤖', '📋', '✨'], e.clientX, e.clientY);
-                              setAnalyticsCopyVolume(prev => prev + 1);
-                              triggerToast('🤖 ChatGPT가 새 창에서 열렸습니다. 병합 완료된 메가 프롬프트가 클립보드로 자동 탑재되었습니다!');
+                              triggerParticles(['🤖', '✨'], e.clientX, e.clientY);
+                              triggerToast('🤖 ChatGPT가 새 창에서 열렸습니다.');
                             }}
                             className="h-8 px-3.5 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer shadow-xs active:scale-95 bg-slate-800 hover:bg-slate-700 text-slate-150 border border-slate-700/80 hover:border-slate-500"
                             title="ChatGPT 웹사이트를 새 탭에서 열기"
@@ -2498,13 +2522,11 @@ export default function App() {
                           <button
                             type="button"
                             onClick={(e) => {
-                              const combinedPrompt = assembledMegaPrompt;
-                              navigator.clipboard.writeText(combinedPrompt);
+                              e.preventDefault();
+                              e.stopPropagation();
                               window.open('https://gemini.google.com/app', '_blank');
-                              
-                              triggerParticles(['✨', '📋', '🔮'], e.clientX, e.clientY);
-                              setAnalyticsCopyVolume(prev => prev + 1);
-                              triggerToast('✨ Google Gemini가 새 창에서 열렸습니다. 병합 완료된 메가 프롬프트가 클립보드로 자동 탑재되었습니다!');
+                              triggerParticles(['✨', '🔮'], e.clientX, e.clientY);
+                              triggerToast('✨ Google Gemini가 새 창에서 열렸습니다.');
                             }}
                             className="h-8 px-3.5 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer shadow-xs active:scale-95 bg-slate-800 hover:bg-slate-700 text-slate-150 border border-slate-700/80 hover:border-slate-500"
                             title="Gemini 웹사이트를 새 탭에서 열기"
@@ -2701,9 +2723,12 @@ export default function App() {
                           <AnimatePresence>
                             {activeTagIndex !== null && (
                               <motion.div
+                                id="tomo-tag-edit-panel"
                                 initial={{ opacity: 0, y: 10 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 exit={{ opacity: 0, y: 10 }}
+                                onMouseEnter={() => setIsHoveringPanel(true)}
+                                onMouseLeave={() => setIsHoveringPanel(false)}
                                 className="bg-[#FFFBF8] border border-blue-200 rounded-2xl p-4 mt-6 shadow-md space-y-3"
                               >
                                 <div className="flex items-center justify-between border-b border-blue-100/60 pb-2">
@@ -2725,12 +2750,9 @@ export default function App() {
                                       onChange={e => setActiveTagValue(e.target.value)}
                                       placeholder="여기에 값을 기입하세요..."
                                       onBlur={() => {
-                                        // onBlur auto save
-                                        setTimeout(() => {
-                                          if (activeTagIndex !== null) {
-                                            handleTagUpdate(activeTagIndex, activeTagValue);
-                                          }
-                                        }, 150);
+                                        if (activeTagIndex !== null) {
+                                          handleTagUpdateWithoutClosing(activeTagIndex, activeTagValue);
+                                        }
                                       }}
                                       onKeyDown={e => {
                                         if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
@@ -2751,15 +2773,18 @@ export default function App() {
                                       >
                                         적용
                                       </button>
-                                      {activeDomain === 'DESIGN' && checkIfTagIsCopyable(activeTagIndex) && (
+                                      {activeTagIndex !== null && (
                                         <button
                                           type="button"
-                                          onMouseDown={(e) => e.preventDefault()}
-                                          onClick={() => {
-                                            navigator.clipboard.writeText(activeTagValue);
-                                            setLastCopiedTagValue(activeTagValue);
-                                            setIsTagCopied(true);
-                                            triggerToast('📄 입력창의 현재 텍스트가 클립보드에 복사되었습니다.');
+                                          onMouseDown={(e) => {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            handleCopyActiveTagText(e);
+                                          }}
+                                          onClick={(e) => {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            handleCopyActiveTagText(e);
                                           }}
                                           className="border border-slate-250 hover:border-slate-350 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold px-4 py-2.5 rounded-xl transition-all cursor-pointer whitespace-nowrap flex items-center justify-center gap-1.5 active:scale-95 shadow-sm h-10"
                                         >
@@ -2888,11 +2913,11 @@ export default function App() {
                         target="_blank"
                         rel="noopener noreferrer"
                         onClick={(e) => {
-                          const textToCopy = assembledMegaPrompt;
-                          navigator.clipboard.writeText(textToCopy);
-                          triggerParticles(['🤖', '📋', '✨'], e.clientX, e.clientY);
-                          setAnalyticsCopyVolume(prev => prev + 1);
-                          triggerToast('🤖 ChatGPT가 새 창에서 열렸습니다. 프롬프트가 클립보드로 자동 탑재되었습니다!');
+                          e.preventDefault();
+                          e.stopPropagation();
+                          window.open('https://chatgpt.com', '_blank');
+                          triggerParticles(['🤖', '✨'], e.clientX, e.clientY);
+                          triggerToast('🤖 ChatGPT가 새 창에서 열렸습니다.');
                         }}
                         className="flex items-center justify-center gap-2.5 px-5 py-4 bg-white hover:bg-slate-50/50 border border-slate-300 hover:border-black rounded-2xl text-xs font-extrabold text-slate-800 transition-all shadow-sm hover:shadow-md cursor-pointer text-center group"
                       >
@@ -2907,11 +2932,11 @@ export default function App() {
                         target="_blank"
                         rel="noopener noreferrer"
                         onClick={(e) => {
-                          const textToCopy = assembledMegaPrompt;
-                          navigator.clipboard.writeText(textToCopy);
-                          triggerParticles(['✨', '📋', '🔮'], e.clientX, e.clientY);
-                          setAnalyticsCopyVolume(prev => prev + 1);
-                          triggerToast('✨ Google Gemini가 새 창에서 열렸습니다. 프롬프트가 클립보드로 자동 탑재되었습니다!');
+                          e.preventDefault();
+                          e.stopPropagation();
+                          window.open('https://gemini.google.com/app', '_blank');
+                          triggerParticles(['✨', '🔮'], e.clientX, e.clientY);
+                          triggerToast('✨ Google Gemini가 새 창에서 열렸습니다.');
                         }}
                         className="flex items-center justify-center gap-2.5 px-5 py-4 bg-white hover:bg-[#854dff]/5 border border-purple-200 hover:border-[#854dff] rounded-2xl text-xs font-extrabold text-[#854dff] transition-all shadow-sm hover:shadow-md cursor-pointer text-center group"
                       >
@@ -2957,11 +2982,11 @@ export default function App() {
           // ==============================================================
           // B. ADMIN MODE (관리자 모드): 좌측 네비바 + CMS / Analytics 전환 패널
           // ==============================================================
-          <div className="flex-1 flex bg-[#F5F7FA]" id="admin-main-viewport">
+          <div className="flex-1 flex bg-[#F5F7FA] overflow-hidden h-full" id="admin-main-viewport">
             
             {/* Left Sidebar Menu Navigation */}
             <aside
-              className="w-60 bg-[#001C3D] text-slate-300 pointer-events-auto shrink-0 flex flex-col justify-between select-none shadow-lg border-r border-[#0d2a4d]"
+              className="w-60 bg-[#001C3D] text-slate-300 pointer-events-auto shrink-0 flex flex-col justify-between select-none shadow-lg border-r border-[#0d2a4d] h-full overflow-y-auto"
               id="admin-navy-sidebar"
             >
               <div className="flex flex-col">
@@ -3082,7 +3107,7 @@ export default function App() {
             </aside>
 
             {/* Main Admin Dashboard Controller Canvas */}
-            <main className="flex-1 p-8 overflow-y-auto" id="admin-canvas-content">
+            <main className="flex-1 p-6 overflow-y-auto h-full" id="admin-canvas-content">
               
               {/* MENU 1: PROMPT FACTORY CMS VIEW */}
               {adminTab === 'cms' && (
@@ -3110,7 +3135,7 @@ export default function App() {
                   </div>
 
                   {/* Search and Tag filter block inside Admin View (Visually Mirrored to Teacher view) */}
-                  <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm space-y-4">
+                  <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm space-y-4">
                     {/* Search Field & Show Hidden toggle in one row */}
                     <div className="flex flex-col lg:flex-row gap-3 items-center">
                       <div className="relative flex-1 w-full">
@@ -3224,7 +3249,7 @@ export default function App() {
                     {filteredAdminPrompts.map(p => (
                       <div
                         key={p.id}
-                        className={`bg-white rounded-3xl border transition-all flex flex-col justify-between p-5 relative shadow-sm hover:shadow-md ${
+                        className={`bg-white rounded-2xl border transition-all flex flex-col justify-between p-4 relative shadow-sm hover:shadow-md ${
                           p.isHidden ? 'border-dashed border-red-300 opacity-60' : 'border-slate-150'
                         }`}
                         id={`admin-prompt-wrapper-card-${p.id}`}
