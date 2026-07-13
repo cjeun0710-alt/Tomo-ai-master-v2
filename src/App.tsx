@@ -88,8 +88,37 @@ export function PromptHashtags({ tags }: { tags: string[] }) {
 
 export function renderHighlightedText(text: string): React.ReactNode {
   if (!text) return '';
-  const regex = /(\{[^{}]+\})/g;
-  const chunkParts = text.split(regex);
+  
+  // Split by balanced curly braces { ... }
+  const chunkParts: string[] = [];
+  let currentPlain = '';
+  let i = 0;
+  while (i < text.length) {
+    if (text[i] === '{') {
+      if (currentPlain) {
+        chunkParts.push(currentPlain);
+        currentPlain = '';
+      }
+      let braceContent = '{';
+      i++;
+      let depth = 1;
+      while (i < text.length && depth > 0) {
+        const char = text[i];
+        braceContent += char;
+        if (char === '{') depth++;
+        else if (char === '}') depth--;
+        i++;
+      }
+      chunkParts.push(braceContent);
+    } else {
+      currentPlain += text[i];
+      i++;
+    }
+  }
+  if (currentPlain) {
+    chunkParts.push(currentPlain);
+  }
+
   return (
     <>
       {chunkParts.map((part, index) => {
@@ -459,6 +488,7 @@ export default function App() {
   const [activeTagIndex, setActiveTagIndex] = useState<number | null>(null);
   const [activeTagValue, setActiveTagValue] = useState<string>('');
   const [isTagCopied, setIsTagCopied] = useState<boolean>(false);
+  const [isPromptCopied, setIsPromptCopied] = useState<boolean>(false);
   const [lastCopiedTagValue, setLastCopiedTagValue] = useState<string | null>(null);
 
   useEffect(() => {
@@ -1012,6 +1042,181 @@ export default function App() {
     }, 1500);
   };
 
+  // Splits text by square brackets [name] and balanced curly braces {name}, supporting nested braces.
+  const splitBySmartTags = (text: string): string[] => {
+    if (!text) return [];
+    const parts: string[] = [];
+    let currentPlain = '';
+    let i = 0;
+    while (i < text.length) {
+      if (text[i] === '[') {
+        if (currentPlain) {
+          parts.push(currentPlain);
+          currentPlain = '';
+        }
+        let bracketContent = '[';
+        i++;
+        let bracketDepth = 1;
+        while (i < text.length && bracketDepth > 0) {
+          const char = text[i];
+          bracketContent += char;
+          if (char === '[') {
+            bracketDepth++;
+          } else if (char === ']') {
+            bracketDepth--;
+          }
+          i++;
+        }
+        parts.push(bracketContent);
+      } else if (text[i] === '{') {
+        if (currentPlain) {
+          parts.push(currentPlain);
+          currentPlain = '';
+        }
+        let braceContent = '{';
+        i++;
+        let depth = 1;
+        while (i < text.length && depth > 0) {
+          const char = text[i];
+          braceContent += char;
+          if (char === '{') {
+            depth++;
+          } else if (char === '}') {
+            depth--;
+          }
+          i++;
+        }
+        parts.push(braceContent);
+      } else {
+        currentPlain += text[i];
+        i++;
+      }
+    }
+    if (currentPlain) {
+      parts.push(currentPlain);
+    }
+    return parts;
+  };
+
+  // Cleans tag labels from unmatched/unbalanced leading/trailing curly braces
+  const cleanTagLabel = (label: string): string => {
+    let cleaned = label.trim();
+    let openCount = 0;
+    let closeCount = 0;
+    for (let char of cleaned) {
+      if (char === '{') openCount++;
+      if (char === '}') closeCount++;
+    }
+    while (openCount !== closeCount) {
+      if (openCount > closeCount && cleaned.startsWith('{')) {
+        cleaned = cleaned.slice(1).trim();
+        openCount--;
+      } else if (closeCount > openCount && cleaned.endsWith('}')) {
+        cleaned = cleaned.slice(0, -1).trim();
+        closeCount--;
+      } else if (openCount > closeCount && cleaned.endsWith('{')) {
+        cleaned = cleaned.slice(0, -1).trim();
+        openCount--;
+      } else if (closeCount > openCount && cleaned.startsWith('}')) {
+        cleaned = cleaned.slice(1).trim();
+        closeCount--;
+      } else {
+        break;
+      }
+    }
+    return cleaned;
+  };
+
+  // Cleans slot labels from unmatched/unbalanced leading/trailing brackets
+  const cleanSlotLabel = (label: string): string => {
+    let cleaned = label.trim();
+    let openCount = 0;
+    let closeCount = 0;
+    for (let char of cleaned) {
+      if (char === '[') openCount++;
+      if (char === ']') closeCount++;
+    }
+    while (openCount !== closeCount) {
+      if (openCount > closeCount && cleaned.startsWith('[')) {
+        cleaned = cleaned.slice(1).trim();
+        openCount--;
+      } else if (closeCount > openCount && cleaned.endsWith(']')) {
+        cleaned = cleaned.slice(0, -1).trim();
+        closeCount--;
+      } else {
+        break;
+      }
+    }
+    return cleaned;
+  };
+
+  // Parses and converts double curly braces {{key: defaultValue}} into single curly braces {defaultValue}
+  const normalizeDoubleCurlyBraces = (text: string): string => {
+    if (!text) return '';
+    let result = '';
+    let i = 0;
+    while (i < text.length) {
+      if (text[i] === '{' && text[i + 1] === '{') {
+        let start = i;
+        i += 2;
+        let inner = '';
+        let singleBraceDepth = 0;
+        while (i < text.length) {
+          if (text[i] === '{' && text[i + 1] === '{') {
+            inner += '{{';
+            i += 2;
+          } else if (text[i] === '}' && text[i + 1] === '}') {
+            if (singleBraceDepth === 0) {
+              i += 2;
+              break;
+            } else {
+              inner += '}}';
+              i += 2;
+            }
+          } else {
+            if (text[i] === '{') singleBraceDepth++;
+            if (text[i] === '}') singleBraceDepth--;
+            inner += text[i];
+            i++;
+          }
+        }
+        const parts = inner.split(':');
+        const key = parts[0].trim();
+        const defaultValue = parts.slice(1).join(':').trim();
+        const finalVal = defaultValue ? defaultValue : key;
+        result += `{${finalVal}}`;
+      } else {
+        result += text[i];
+        i++;
+      }
+    }
+    return result;
+  };
+
+  // Strips outermost single curly braces {...} for compiler output, handling nested braces correctly
+  const stripOuterBraces = (text: string): string => {
+    let result = '';
+    let i = 0;
+    while (i < text.length) {
+      if (text[i] === '{') {
+        let depth = 1;
+        let start = i;
+        i++;
+        while (i < text.length && depth > 0) {
+          if (text[i] === '{') depth++;
+          else if (text[i] === '}') depth--;
+          i++;
+        }
+        const content = text.slice(start + 1, i - 1);
+        result += content;
+      } else {
+        result += text[i];
+        i++;
+      }
+    }
+    return result;
+  };
+
   // Helper to parse variables inside double curly braces {{name}} or square brackets [name]
   const parseVariables = (text: string) => {
     const regexDouble = /\{\{([^}]+)\}\}/g;
@@ -1052,14 +1257,14 @@ export default function App() {
       result = result.replaceAll(m.full, replacementValue);
     });
 
-    // Strip single curly braces {...} for compiler output: e.g. {흙 놀이} -> 흙 놀이
-    result = result.replace(/\{(.*?)\}/g, '$1');
+    // Strip single curly braces {...} for compiler output, handling nested braces correctly
+    result = stripOuterBraces(result);
 
     return result;
   };
 
   const handleTagUpdate = (indexToUpdate: number, newVal: string) => {
-    const parts = canvasText.split(/(\[.*?\]|\{.*?\})/g);
+    const parts = splitBySmartTags(canvasText);
     if (indexToUpdate >= 0 && indexToUpdate < parts.length) {
       parts[indexToUpdate] = `{${newVal}}`;
       const updated = parts.join('');
@@ -1071,7 +1276,7 @@ export default function App() {
 
   const checkIfTagIsCopyable = (tagIndex: number | null) => {
     if (tagIndex === null || tagIndex === undefined) return false;
-    const parts = canvasText.split(/(\[.*?\]|\{.*?\})/g);
+    const parts = splitBySmartTags(canvasText);
     if (tagIndex <= 0 || tagIndex >= parts.length) return false;
 
     // Get the plain text immediately preceding this tag
@@ -1125,11 +1330,9 @@ export default function App() {
   const selectTemplateAndGoToCanvas = (template: PromptTemplate) => {
     setSelectedTemplate(template);
     setLastCopiedTagValue(null);
+    setIsPromptCopied(false);
     const textToLoad = template.canvasTemplate ?? template.promptText;
-    const normalizedText = textToLoad.replace(/\{\{([^}]+)\}\}/g, (match, inner) => {
-      const parts = inner.split(':');
-      return `{${parts[1] ? parts[1].trim() : parts[0].trim()}}`;
-    });
+    const normalizedText = normalizeDoubleCurlyBraces(textToLoad);
     setCanvasText(normalizedText);
     setInitialPromptText(normalizedText);
     setWizardStep(2);
@@ -1157,7 +1360,7 @@ export default function App() {
     // Get the absolute latest canvas text, incorporating the active tag being edited right now
     let latestCanvasText = canvasText;
     if (teacherEditMode === 'tags' && activeTagIndex !== null) {
-      const parts = canvasText.split(/(\[.*?\]|\{.*?\})/g);
+      const parts = splitBySmartTags(canvasText);
       if (activeTagIndex >= 0 && activeTagIndex < parts.length) {
         parts[activeTagIndex] = `{${activeTagValue}}`;
         latestCanvasText = parts.join('');
@@ -1165,28 +1368,14 @@ export default function App() {
     }
 
     const compiledBody = getCompiledText(latestCanvasText);
-    const sysGuidance = selectedTemplate.systemGuidance || '';
+    const sysGuidance = (selectedTemplate.systemGuidance || '').trim();
 
-    if (sysGuidance.trim()) {
-      return `${sysGuidance.trim()}\n\n${compiledBody}`;
+    if (sysGuidance) {
+      return `${sysGuidance}\n\n${compiledBody}`;
     }
 
-    let toneInstruction = '';
-    if (selectedTone === '다정하게') {
-      toneInstruction = '\n[어조 설정]: 학부모가 읽었을 때 심리적 안정감과 전폭적인 신뢰를 느낄 수 있도록 친밀하고 부드러운 다정한 문채를 채택하세요.';
-    } else {
-      toneInstruction = '\n[어조 설정]: 어린이집 위원회 및 공식 행정 감사의 격식에 부합하도록 정형화되고 논리정연한 전문가 어조를 쓰세요.';
-    }
-
-    let formatInstruction = '';
-    if (selectedFormat === '카드뉴스형') {
-      formatInstruction = '\n[출력 레이아웃 포맷]: 슬라이드 카드 뉴스 형태(Slide 1 ~ Slide 5)로 구체적인 화면 시각화 아이디어 제안과 짧은 캐치프레이즈를 쌍으로 구성해 구분선으로 작성하세요.';
-    } else {
-      formatInstruction = '\n[출력 레이아웃 포맷]: 누락 없는 알림장 전체 전달을 위해 단락별 소제목(가정 소통 방향, 정서 피드백, 준비물 리스트 등)을 포함한 통짜 줄글 구조로 작성하세요.';
-    }
-
-    return `// ==========================================\n// TOMO AI DIRECTOR GENERATED META-PROMPT\n// ==========================================\n\n[주요 지시사항 및 상황 맥락]:\n${compiledBody}\n${toneInstruction}\n${formatInstruction}\n\n[최종 AI 수행 지침]: 상기 명시된 만 3세 발달과업 맞춤형 룰과 교실 context를 완벽히 준수해, 학부모가 극찬할 수준 높은 출력을 한국어로 완수해라.`;
-  }, [selectedTemplate, canvasText, selectedTone, selectedFormat, variableValues, teacherEditMode, activeTagIndex, activeTagValue]);
+    return compiledBody;
+  }, [selectedTemplate, canvasText, variableValues, teacherEditMode, activeTagIndex, activeTagValue]);
 
   // Handle Admin CRUD or Edit Form Opening
   const openNewPromptModal = (promptToEdit: PromptTemplate | null = null) => {
@@ -2162,10 +2351,7 @@ export default function App() {
                             {/* Content Preview: visible at all times */}
                             {(() => {
                               const rawText = p.canvasTemplate ?? p.promptText;
-                              const previewText = rawText.replace(/\{\{([^}]+)\}\}/g, (match, inner) => {
-                                const parts = inner.split(':');
-                                return `{${parts[1] ? parts[1].trim() : parts[0].trim()}}`;
-                              });
+                              const previewText = normalizeDoubleCurlyBraces(rawText);
                               return (
                                 <div className="bg-slate-50 border border-slate-100 rounded-xl p-3 text-xs mt-3 leading-relaxed text-slate-600 whitespace-pre-wrap line-clamp-4 overflow-hidden">
                                   {renderHighlightedText(previewText)}
@@ -2258,10 +2444,7 @@ export default function App() {
                               const latestPrompt = activePrompts.find(p => p.id === selectedTemplate.id);
                               if (latestPrompt) {
                                 const textToLoad = latestPrompt.canvasTemplate ?? latestPrompt.promptText;
-                                const normalizedText = textToLoad.replace(/\{\{([^}]+)\}\}/g, (match, inner) => {
-                                  const parts = inner.split(':');
-                                  return `{${parts[1] ? parts[1].trim() : parts[0].trim()}}`;
-                                });
+                                const normalizedText = normalizeDoubleCurlyBraces(textToLoad);
                                 setCanvasText(normalizedText);
                                 setSelectedTemplateWorkingVersion(templateVersions[selectedTemplate.id] || 1);
                                 
@@ -2295,48 +2478,40 @@ export default function App() {
                         </div>
 
                         <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
-                          <a
-                            href="https://chatgpt.com"
-                            target="_blank"
-                            rel="noopener noreferrer"
+                          <button
+                            type="button"
                             onClick={(e) => {
-                              const textToCopy = getTargetPromptToCopy();
-                              navigator.clipboard.writeText(textToCopy);
+                              const combinedPrompt = assembledMegaPrompt;
+                              navigator.clipboard.writeText(combinedPrompt);
+                              window.open('https://chatgpt.com', '_blank');
+                              
                               triggerParticles(['🤖', '📋', '✨'], e.clientX, e.clientY);
                               setAnalyticsCopyVolume(prev => prev + 1);
-                              if (textToCopy !== assembledMegaPrompt) {
-                                triggerToast('🤖 ChatGPT가 새 창에서 열렸습니다. 선택한 [개별 페이지 프롬프트]가 클립보드로 자동 탑재되었습니다!');
-                              } else {
-                                triggerToast('🤖 ChatGPT가 새 창에서 열렸습니다. 병합 완료된 메가 프롬프트가 클립보드로 자동 탑재되었습니다!');
-                              }
+                              triggerToast('🤖 ChatGPT가 새 창에서 열렸습니다. 병합 완료된 메가 프롬프트가 클립보드로 자동 탑재되었습니다!');
                             }}
-                            className="h-8 px-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-150 border border-slate-700/80 hover:border-slate-500 text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer shadow-xs active:scale-95"
+                            className="h-8 px-3.5 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer shadow-xs active:scale-95 bg-slate-800 hover:bg-slate-700 text-slate-150 border border-slate-700/80 hover:border-slate-500"
                             title="ChatGPT 웹사이트를 새 탭에서 열기"
                           >
                             <span>🤖 ChatGPT 열기</span>
                             <ExternalLink className="w-3 h-3 text-slate-400" />
-                          </a>
-                          <a
-                            href="https://gemini.google.com"
-                            target="_blank"
-                            rel="noopener noreferrer"
+                          </button>
+                          <button
+                            type="button"
                             onClick={(e) => {
-                              const textToCopy = getTargetPromptToCopy();
-                              navigator.clipboard.writeText(textToCopy);
+                              const combinedPrompt = assembledMegaPrompt;
+                              navigator.clipboard.writeText(combinedPrompt);
+                              window.open('https://gemini.google.com/app', '_blank');
+                              
                               triggerParticles(['✨', '📋', '🔮'], e.clientX, e.clientY);
                               setAnalyticsCopyVolume(prev => prev + 1);
-                              if (textToCopy !== assembledMegaPrompt) {
-                                triggerToast('✨ Google Gemini가 새 창에서 열렸습니다. 선택한 [개별 페이지 프롬프트]가 클립보드로 자동 탑재되었습니다!');
-                              } else {
-                                triggerToast('✨ Google Gemini가 새 창에서 열렸습니다. 병합 완료된 메가 프롬프트가 클립보드로 자동 탑재되었습니다!');
-                              }
+                              triggerToast('✨ Google Gemini가 새 창에서 열렸습니다. 병합 완료된 메가 프롬프트가 클립보드로 자동 탑재되었습니다!');
                             }}
-                            className="h-8 px-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-150 border border-slate-700/80 hover:border-slate-500 text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer shadow-xs active:scale-95"
+                            className="h-8 px-3.5 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer shadow-xs active:scale-95 bg-slate-800 hover:bg-slate-700 text-slate-150 border border-slate-700/80 hover:border-slate-500"
                             title="Gemini 웹사이트를 새 탭에서 열기"
                           >
                             <span>✨ Gemini 열기</span>
                             <ExternalLink className="w-3 h-3 text-slate-400" />
-                          </a>
+                          </button>
 
                         </div>
                       </div>
@@ -2369,6 +2544,7 @@ export default function App() {
                                 setVariableValues(variableDefaults);
                                 setActiveTagIndex(null);
                                 setLastCopiedTagValue(null);
+                                setIsPromptCopied(false);
                                 triggerToast('↺ 프롬프트 텍스트 및 모든 스마트 태그가 최초 원본 상태로 복구되었습니다.');
                               }}
                               className="h-8 px-2.5 bg-white hover:bg-slate-100 text-slate-700 hover:text-slate-900 rounded-xl text-[11px] font-black border border-slate-250 shadow-2xs transition-all flex items-center gap-1.5 cursor-pointer"
@@ -2383,11 +2559,12 @@ export default function App() {
                               onClick={(e) => {
                                 navigator.clipboard.writeText(assembledMegaPrompt);
                                 setLastCopiedTagValue(null);
+                                setIsPromptCopied(true);
                                 triggerParticles(['🚀', '✨', '⚡', '💖'], e.clientX, e.clientY);
                                 setAnalyticsCopyVolume(prev => prev + 1);
                                 triggerToast('📋 메가 프롬프트가 클립보드로 전체 복사 완료되었습니다!');
                               }}
-                              className="h-8 px-2.5 bg-slate-800 hover:bg-slate-900 border border-slate-705 text-white rounded-xl text-[11px] font-extrabold shadow-2xs transition-all flex items-center gap-1.5 cursor-pointer"
+                              className="h-8 px-2.5 bg-slate-800 hover:bg-slate-900 border border-slate-700 text-white rounded-xl text-[11px] font-extrabold shadow-2xs transition-all flex items-center gap-1.5 cursor-pointer"
                             >
                               <Copy className="w-3.5 h-3.5 text-slate-300" />
                               <span>복사하기</span>
@@ -2472,11 +2649,11 @@ export default function App() {
                           
                           <div className="font-semibold font-sans text-xs tracking-wide leading-loose">
                             {(() => {
-                              const parts = canvasText.split(/(\[.*?\]|\{.*?\})/g);
+                              const parts = splitBySmartTags(canvasText);
                               return parts.map((part, idx) => {
                                 if (part.startsWith('[') && part.endsWith(']')) {
                                   // Slot: [텍스트]
-                                  const slotContent = part.slice(1, -1);
+                                  const slotContent = cleanSlotLabel(part.slice(1, -1));
                                   return (
                                     <span 
                                       key={idx} 
@@ -2487,7 +2664,7 @@ export default function App() {
                                   );
                                 } else if (part.startsWith('{') && part.endsWith('}')) {
                                   // Tag: {텍스트}
-                                  const tagContent = part.slice(1, -1);
+                                  const tagContent = cleanTagLabel(part.slice(1, -1));
                                   const isEditing = activeTagIndex === idx;
                                   return (
                                     <button
@@ -2710,6 +2887,13 @@ export default function App() {
                         href="https://chatgpt.com"
                         target="_blank"
                         rel="noopener noreferrer"
+                        onClick={(e) => {
+                          const textToCopy = assembledMegaPrompt;
+                          navigator.clipboard.writeText(textToCopy);
+                          triggerParticles(['🤖', '📋', '✨'], e.clientX, e.clientY);
+                          setAnalyticsCopyVolume(prev => prev + 1);
+                          triggerToast('🤖 ChatGPT가 새 창에서 열렸습니다. 프롬프트가 클립보드로 자동 탑재되었습니다!');
+                        }}
                         className="flex items-center justify-center gap-2.5 px-5 py-4 bg-white hover:bg-slate-50/50 border border-slate-300 hover:border-black rounded-2xl text-xs font-extrabold text-slate-800 transition-all shadow-sm hover:shadow-md cursor-pointer text-center group"
                       >
                         <MessageSquare className="w-4 h-4 text-zinc-600 group-hover:text-black transition-colors" />
@@ -2719,9 +2903,16 @@ export default function App() {
 
                       {/* Button 2: Gemini (Blue/Purple border) */}
                       <a
-                        href="https://gemini.google.com"
+                        href="https://gemini.google.com/app"
                         target="_blank"
                         rel="noopener noreferrer"
+                        onClick={(e) => {
+                          const textToCopy = assembledMegaPrompt;
+                          navigator.clipboard.writeText(textToCopy);
+                          triggerParticles(['✨', '📋', '🔮'], e.clientX, e.clientY);
+                          setAnalyticsCopyVolume(prev => prev + 1);
+                          triggerToast('✨ Google Gemini가 새 창에서 열렸습니다. 프롬프트가 클립보드로 자동 탑재되었습니다!');
+                        }}
                         className="flex items-center justify-center gap-2.5 px-5 py-4 bg-white hover:bg-[#854dff]/5 border border-purple-200 hover:border-[#854dff] rounded-2xl text-xs font-extrabold text-[#854dff] transition-all shadow-sm hover:shadow-md cursor-pointer text-center group"
                       >
                         <Sparkles className="w-4 h-4 text-[#854dff] animate-pulse" />
