@@ -3097,13 +3097,7 @@ export default function App() {
 
               </div>
 
-              {/* Bottom Developer Credits */}
-              <div className="p-4 mx-3 mb-4 rounded-xl bg-[#00142B] border border-[#0d2a4d]/80 text-[10px] space-y-1 text-slate-400 font-mono">
-                <p className="font-bold text-slate-300">SYSTEM ATTRIBUTES</p>
-                <p>Uptime: 100.0% Stable</p>
-                <p>Database: Memory Ingest</p>
-                <p>SSO Token Hash: ACT-9844x</p>
-              </div>
+              
             </aside>
 
             {/* Main Admin Dashboard Controller Canvas */}
@@ -3121,17 +3115,7 @@ export default function App() {
                       </h2>
                     </div>
 
-                    {/* Stats summary banner */}
-                    <div className="bg-white px-4 py-2 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4 text-xs font-bold text-slate-600">
-                      <span className="flex items-center gap-1">
-                        <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block animate-pulse"></span>
-                        활성 {activePrompts.filter(p => !p.isHidden).length}개
-                      </span>
-                      <span className="flex items-center gap-1 text-slate-400">
-                        <EyeOff className="w-3.5 h-3.5" />
-                        숨김 {activePrompts.filter(p => p.isHidden).length}개
-                      </span>
-                    </div>
+
                   </div>
 
                   {/* Search and Tag filter block inside Admin View (Visually Mirrored to Teacher view) */}
