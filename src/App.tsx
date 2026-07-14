@@ -2733,7 +2733,7 @@ export default function App() {
                               >
                                 <div className="flex items-center justify-between border-b border-blue-100/60 pb-2">
                                   <span className="text-xs font-black text-blue-800 flex items-center gap-1.5">
-                                    <span>✏️</span> 스마트 태그 값 수정: <strong className="text-blue-600 bg-white px-2 py-0.5 rounded border border-rose-200">태그 수정 중</strong>
+                                    <span>✏️</span> 태그 프롬프트 수정: <strong className="text-blue-600 bg-white px-2 py-0.5 rounded border border-rose-200">태그 수정 중</strong>
                                   </span>
                                   <button
                                     type="button"
@@ -2820,7 +2820,7 @@ export default function App() {
                           {activeDomain === 'TEXT' ? (
                             <>본문 속 각 괄호({'{ }'}) 안의 예시 문구를 지우고 우리 원(반) 상황에 맞게 직접 수정하세요. 맞춤법과 띄어쓰기가 정확한지 꼼꼼히 확인해 주시기 바랍니다.</>
                           ) : (
-                            <>문서를 더 예쁘게 포장해 줄 '디자인 레시피'입니다! 🪄 글(내용)과 레시피(디자인)를 함께 복사해서 AI 툴에 붙여넣어 보세요. 마법처럼 멋진 문서가 만들어집니다!</>
+                            <>문서를 더 예쁘게 포장해 줄 '디자인 레시피'입니다! 🪄 글(내용)과 레시피(디자인)를 함께 복사해서 AI 툴에 붙여넣어 보세요.</>
                           )}
                         </span>
                       </div>
