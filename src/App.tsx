@@ -53,6 +53,8 @@ import { INITIAL_PROMPTS, INITIAL_DESIGN_PROMPTS, INITIAL_TEACHERS, CATEGORIES, 
 import { PromptTemplate, Teacher } from './types';
 import aiGoLogo from './assets/logo_clear.png';
 
+import { TOMO_PRO_LOGO_BASE64 } from './assets/logo_base64';
+
 // Floating Particle/Sticker Interface
 interface FlyingParticle {
   id: number;
@@ -66,6 +68,30 @@ interface FlyingParticle {
 // ==========================================
 // SHARED CUSTOM COMPONENTS FOR UNIFIED STYLING
 // ==========================================
+export function LogoWithFallback({ className = "w-full max-w-full h-auto object-contain" }: { className?: string }) {
+  const [hasError, setHasError] = useState(false);
+
+  if (hasError) {
+    return (
+      <div className="flex items-center gap-1.5 select-none py-1.5 px-3 bg-[#00142B]/80 rounded-xl border border-teal-500/20">
+        <span className="text-lg font-black tracking-wider bg-gradient-to-r from-teal-400 via-emerald-400 to-[#FF6B6B] bg-clip-text text-transparent font-sans">
+          Tomo AI Pro
+        </span>
+      </div>
+    );
+  }
+
+  return (
+    <img
+      src={TOMO_PRO_LOGO_BASE64}
+      alt="Tomo AI Pro"
+      className={className}
+      onError={() => setHasError(true)}
+      referrerPolicy="no-referrer"
+    />
+  );
+}
+
 export function PromptCategoryPill({ category }: { category: string }) {
   return (
     <span className="sys-tag bg-slate-100 text-slate-600 px-2.5 py-0.5 rounded-full font-bold">
@@ -1769,15 +1795,7 @@ export default function App() {
             className="bg-white rounded-3xl p-8 md:p-12 shadow-2xl border border-slate-100 space-y-8 relative"
           >
             {/* Header / Brand */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-6">
-              <div className="select-none">
-                <img
-                  src={aiGoLogo}
-                  alt="Tomo AI Go Logo"
-                  className="w-[180px] h-auto object-contain"
-                  referrerPolicy="no-referrer"
-                />
-              </div>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-end gap-4 border-b border-slate-100 pb-6">
               <div className="text-xs text-slate-400 font-semibold flex items-center gap-1.5">
                 <span>도움이 필요하신가요?</span>
                 <a href="mailto:support@tomoai.com" className="text-[#001C3D] hover:underline flex items-center gap-0.5 font-bold">
@@ -1914,7 +1932,7 @@ export default function App() {
 
             {/* Bottom Warning/Footer */}
             <div className="text-center text-[11px] text-slate-400 font-semibold pt-4 border-t border-slate-100">
-              © 2026 Tomo AI Go. 본 시스템은 최신 기계 학습 지원 도구 및 암호 규격을 적용받고 있습니다.
+              © 2026 Tomo AI Pro. 본 시스템은 최신 기계 학습 지원 도구 및 암호 규격을 적용받고 있습니다.
             </div>
           </motion.div>
         </div>
@@ -1938,7 +1956,7 @@ export default function App() {
             <span className="font-rounded font-black tracking-tighter text-base">토</span>
           </div>
           <span className="font-extrabold text-[#001C3D] tracking-tight text-base sm:text-lg flex items-center gap-2 font-rounded">
-            토모 AI고 (Tomo AI Go)
+            토모 AI 프로 (Tomo AI Pro)
             <span className="hidden sm:inline bg-slate-100 text-[#001C3D] px-2 py-0.5 rounded-full text-[10px] font-black border border-slate-200 font-sans">
               {isAdminMode ? 'ADMIN MODE' : 'TEACHER APP'}
             </span>
@@ -2044,13 +2062,12 @@ export default function App() {
             >
               <div className="flex flex-col">
                 {/* Visual App Logo & Brand inside sidebar */}
-                <div className="p-5 border-b border-[#0d2a4d]/60 bg-[#00142B] flex justify-center items-center select-none">
-                  <img
-                    src={aiGoLogo}
-                    alt="Tomo AI Go Logo"
-                    className="max-w-[160px] h-auto object-contain py-1"
-                    referrerPolicy="no-referrer"
-                  />
+                <div className="p-4 border-b border-[#0d2a4d]/60 bg-[#00142B] flex justify-center items-center select-none py-4.5">
+                  <div className="flex items-center gap-1.5 select-none py-1 px-3 bg-[#00142B]/80 rounded-xl border border-teal-500/20">
+                    <span className="text-lg font-black tracking-wider bg-gradient-to-r from-teal-400 via-emerald-400 to-[#FF6B6B] bg-clip-text text-transparent font-sans">
+                      Tomo AI Pro
+                    </span>
+                  </div>
                 </div>
 
                 {/* Left Sidebar Navigation Options as requested verbatim */}
@@ -2149,7 +2166,7 @@ export default function App() {
                     <span className="text-[9px] text-slate-500 font-extrabold uppercase tracking-wider block mb-1">도움말 및 지원 (Help & Support)</span>
                     <button
                       type="button"
-                      onClick={() => triggerToast('📚 [사용 가이드] Tomo AI Go 교무 길라잡이 매뉴얼을 불러옵니다.')}
+                      onClick={() => triggerToast('📚 [사용 가이드] Tomo AI Pro 교무 길라잡이 매뉴얼을 불러옵니다.')}
                       className="w-full flex items-center gap-2.5 px-2 py-1.5 rounded-lg text-[11px] font-bold text-slate-400 hover:text-white hover:bg-white/5 transition-all text-left cursor-pointer"
                     >
                       <BookOpen className="w-3.5 h-3.5 text-rose-450" />
@@ -2165,7 +2182,7 @@ export default function App() {
                     </button>
                   </div>
                   <div className="pt-2 text-center text-[10px] text-slate-500 font-bold border-t border-[#0d2a4d]/30">
-                    <span>Tomo AI Go v2.4</span>
+                    <span>Tomo AI Pro v2.4</span>
                   </div>
                 </div>
               </aside>
@@ -2999,12 +3016,11 @@ export default function App() {
                     });
                   }}
                 >
-                  <img
-                    src={aiGoLogo}
-                    alt="Tomo AI Go Logo"
-                    className="max-w-[150px] h-auto object-contain py-1"
-                    referrerPolicy="no-referrer"
-                  />
+                  <div className="flex items-center gap-1.5 select-none py-1 px-3 bg-[#00142B]/80 rounded-xl border border-teal-500/20">
+                    <span className="text-lg font-black tracking-wider bg-gradient-to-r from-teal-400 via-emerald-400 to-[#FF6B6B] bg-clip-text text-transparent font-sans">
+                      Tomo AI Pro
+                    </span>
+                  </div>
                 </div>
 
                 {/* Sidebar Navigation Options */}
