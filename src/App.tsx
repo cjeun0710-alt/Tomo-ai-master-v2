@@ -2412,28 +2412,7 @@ export default function App() {
 
               {/* --- STEP 2: PROMPT CANVAS (7:3 split layout) --- */}
               {wizardStep === 2 && (
-                !selectedTemplate ? (
-                  <div className="min-h-[350px] flex flex-col items-center justify-center bg-white rounded-2xl p-6 border border-slate-200/80 shadow-md text-center">
-                    <div className="w-16 h-16 bg-rose-50 text-[#FF6B6B] rounded-full flex items-center justify-center mb-6">
-                      <Sliders className="w-8 h-8" />
-                    </div>
-                    <h3 className="text-lg font-black text-[#001C3D] mb-6">
-                      선택된 템플릿이 없습니다
-                    </h3>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setWizardStep(1);
-                        triggerToast('📋 템플릿 큐레이션으로 이동합니다.');
-                      }}
-                      className="px-6 py-3 bg-[#FF6B6B] hover:bg-[#FF5252] text-white text-sm font-bold rounded-2xl shadow-md transition-all active:scale-95 cursor-pointer flex items-center gap-2 mx-auto"
-                    >
-                      <Sparkles className="w-4 h-4" />
-                      <span>템플릿 큐레이션으로 가기</span>
-                    </button>
-                  </div>
-                ) : (
-                  <div className="space-y-6">
+                <div className="space-y-6">
                   <div>
                     <h3 className="sys-heading-main text-[#001C3D] flex items-center gap-2">
                       <Sliders className="w-5 h-5 text-[#FF6B6B]" />
@@ -2447,8 +2426,23 @@ export default function App() {
                   {/* Unified layout structure with empty focus area on the right */}
                   <div className="grid grid-cols-1 lg:grid-cols-10 gap-6">
                     
-                    {/* Center: Mega Canvas - Expanded to col-span-8 to occupy more space */}
-                    <div className="lg:col-span-8 bg-white rounded-2xl p-4.5 border border-slate-200/80 shadow-md flex flex-col space-y-4">
+                    {!selectedTemplate ? (
+                      <div className="lg:col-span-8 bg-white rounded-2xl p-8 border border-slate-200/80 shadow-md min-h-[450px] flex flex-col items-center justify-center text-center">
+                        <div className="w-16 h-16 bg-rose-50 text-[#FF6B6B] rounded-full flex items-center justify-center mb-6 animate-pulse">
+                          <Sliders className="w-8 h-8" />
+                        </div>
+                        <h3 className="text-lg font-black text-[#001C3D] mb-2 tracking-tight">
+                          작성할 템플릿이 선택되지 않았습니다
+                        </h3>
+                        <p className="text-sm font-semibold text-slate-500 mb-6 max-w-md leading-relaxed">
+                          템플릿 큐레이션 메뉴에서 마음에 드는 템플릿을 먼저 선택해 주세요.
+                        </p>
+                        <span className="text-xs bg-slate-100 text-slate-600 font-bold px-3.5 py-1.5 rounded-full inline-flex items-center gap-1.5 border border-slate-200">
+                          <span className="text-[#FF6B6B]">👈</span> 작성할 템플릿을 선택해 주세요.
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="lg:col-span-8 bg-white rounded-2xl p-4.5 border border-slate-200/80 shadow-md flex flex-col space-y-4">
                       
                       {/* Version Sync Banner */}
                       {versionControlEnabled && selectedTemplate && (templateVersions[selectedTemplate.id] || 1) > selectedTemplateWorkingVersion && (
@@ -2824,7 +2818,8 @@ export default function App() {
                           )}
                         </span>
                       </div>
-                    </div>
+                      </div>
+                    )}
 
                     {/* Right: Empty space / focus area (remaining 2 columns out of 10) */}
                     <div className="lg:col-span-2 hidden lg:block" />
@@ -2832,7 +2827,6 @@ export default function App() {
 
 
                 </div>
-                )
               )}
 
               {/* --- STEP 3: MEGA PROMPT GENERATION --- */}
