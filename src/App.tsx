@@ -2452,7 +2452,7 @@ export default function App() {
                           작성할 템플릿이 선택되지 않았습니다
                         </h3>
                         <p className="text-sm font-semibold text-slate-500 mb-6 max-w-md leading-relaxed">
-                          템플릿 큐레이션 메뉴에서 마음에 드는 템플릿을 먼저 선택해 주세요.
+                          템플릿 큐레이션 메뉴에서 템플릿을 먼저 선택해 주세요.
                         </p>
                         <span className="text-xs bg-slate-100 text-slate-600 font-bold px-3.5 py-1.5 rounded-full inline-flex items-center gap-1.5 border border-slate-200">
                           <span className="text-[#FF6B6B]">👈</span> 작성할 템플릿을 선택해 주세요.
