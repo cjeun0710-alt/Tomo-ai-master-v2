@@ -6,7 +6,7 @@ import {defineConfig} from 'vite';
 
 export default defineConfig(() => {
   return {
-    base: './',
+    base: '/Tomo-ai-master-v2/',
     plugins: [react(), tailwindcss()],
     resolve: {
       alias: {
