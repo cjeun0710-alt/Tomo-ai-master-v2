@@ -47,9 +47,15 @@ import {
   LogOut,
   Palette,
   Lock,
-  Cloud
+  Cloud,
+  Calendar,
+  CalendarDays
 } from 'lucide-react';
+import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { format, subDays, subWeeks, subMonths, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subYears, startOfYear, endOfYear, addMonths, addYears, getDaysInMonth, getDay, isSameDay } from 'date-fns';
+import { ko } from 'date-fns/locale';
 import { INITIAL_PROMPTS, INITIAL_DESIGN_PROMPTS, INITIAL_TEACHERS, CATEGORIES, TAGS } from './data';
+import { branchData, kindergartenTrendData, ageUsageData, kindergartenTableData, templateTableData } from './components/AnalyticsData';
 import { PromptTemplate, Teacher } from './types';
 import aiGoLogo from './assets/logo_clear.png';
 
@@ -738,6 +744,14 @@ export default function App() {
   const [globalYear, setGlobalYear] = useState<string>('2026');
   const [globalMonth, setGlobalMonth] = useState<string>('06');
   const [globalDay, setGlobalDay] = useState<string>('18');
+  const [analyticsTab, setAnalyticsTab] = useState<'branch' | 'kindergarten' | 'template'>('branch');
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [dateRangeMode, setDateRangeMode] = useState<'weekly' | 'monthly' | 'yearly'>('weekly');
+  const [searchTemplate, setSearchTemplate] = useState('');
+  const [selectedDateLabel, setSelectedDateLabel] = useState('이번 주');
+  const [activePreset, setActivePreset] = useState<string>('이번 주');
+  const [calendarDate, setCalendarDate] = useState<Date>(new Date(2026, 5, 1));
+  const [tempDateRange, setTempDateRange] = useState<{start: Date, end: Date} | null>(null);
 
   const dateSeed = useMemo(() => {
     const y = parseInt(globalYear, 10) || 2026;
@@ -3363,422 +3377,499 @@ export default function App() {
               {/* MENU 2: DATA DASHBOARD (ANALYTICS VIEW) */}
               {adminTab === 'analytics' && (
                 <div className="space-y-6">
-                  
-                   {/* Top Header Row with highly visible export button labeled [CSV 원시 데이터 추출] and Global Date Filter */}
+                  {/* Top Header Row with Date Range Picker and Tabs */}
                   <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 border-b border-slate-200 pb-4">
-                    <div>
+                    <div className="flex items-center gap-4">
                       <h2 className="sys-heading-main text-[#001C3D]">
                         데이터 분석 (Quantitative Analytics Console)
                       </h2>
-                    </div>
 
-                    {/* Global Date Filter and Export control row */}
-                    <div className="flex flex-wrap items-center gap-3 bg-slate-50/80 p-2.5 rounded-2xl border border-slate-200 w-full xl:w-auto">
-                      
-                      {/* Global Date Filter Section */}
-                      <div className="flex flex-wrap items-center gap-1.5 px-1">
-                        <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider mr-1">Global Date Filter:</span>
+                      {/* Advanced Date Range Picker */}
+                      <div className="relative">
+                        <button 
+                          onClick={() => setShowDatePicker(!showDatePicker)}
+                          className="flex items-center gap-2 px-3 py-1.5 bg-white border border-slate-200 rounded-lg shadow-sm hover:border-slate-300 transition-colors"
+                        >
+                          <CalendarDays className="w-4 h-4 text-slate-500" />
+                          <span className="text-xs font-bold text-slate-700">{selectedDateLabel}</span>
+                          <ChevronDown className="w-3 h-3 text-slate-400" />
+                        </button>
                         
-                        {/* Year select */}
-                        <div className="relative">
-                          <select
-                            value={globalYear}
-                            onChange={(e) => {
-                              setGlobalYear(e.target.value);
-                              triggerToast(`📅 조회 연도가 ${e.target.value}년으로 변경되어 실시간 데이터가 업데이트되었습니다.`);
-                            }}
-                            className="appearance-none pl-3 pr-8 py-1.5 bg-white border border-slate-200 hover:border-slate-300 rounded-lg text-xs font-bold text-slate-700 shadow-sm cursor-pointer focus:outline-none transition-colors"
-                          >
-                            <option value="2026">2026 YYYY</option>
-                            <option value="2025">2025 YYYY</option>
-                            <option value="2024">2024 YYYY</option>
-                            <option value="2023">2023 YYYY</option>
-                          </select>
-                          <ChevronDown className="w-3 h-3 text-slate-400 absolute right-2 top-2.5 pointer-events-none" />
-                        </div>
-
-                        {/* Month select */}
-                        <div className="relative">
-                          <select
-                            value={globalMonth}
-                            onChange={(e) => {
-                              setGlobalMonth(e.target.value);
-                              triggerToast(`📅 조회 월이 ${e.target.value}월로 변경되어 실시간 데이터가 업데이트되었습니다.`);
-                            }}
-                            className="appearance-none pl-3 pr-8 py-1.5 bg-white border border-slate-200 hover:border-slate-300 rounded-lg text-xs font-bold text-slate-700 shadow-sm cursor-pointer focus:outline-none transition-colors"
-                          >
-                            {['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12'].map(m => (
-                              <option key={m} value={m}>{m} MM</option>
-                            ))}
-                          </select>
-                          <ChevronDown className="w-3 h-3 text-slate-400 absolute right-2 top-2.5 pointer-events-none" />
-                        </div>
-
-                        {/* Day select */}
-                        <div className="relative">
-                          <select
-                            value={globalDay}
-                            onChange={(e) => {
-                              setGlobalDay(e.target.value);
-                              triggerToast(`📅 조회 일자가 ${e.target.value}일로 변경되어 실시간 데이터가 업데이트되었습니다.`);
-                            }}
-                            className="appearance-none pl-3 pr-8 py-1.5 bg-white border border-slate-200 hover:border-slate-300 rounded-lg text-xs font-bold text-slate-700 shadow-sm cursor-pointer focus:outline-none transition-colors"
-                          >
-                            {Array.from({ length: 31 }, (_, i) => {
-                              const d = String(i + 1).padStart(2, '0');
-                              return <option key={d} value={d}>{d} DD</option>;
-                            })}
-                          </select>
-                          <ChevronDown className="w-3 h-3 text-slate-400 absolute right-2 top-2.5 pointer-events-none" />
-                        </div>
-                      </div>
-
-                      {/* Verbatim Export Button: [CSV 원시 데이터 추출] */}
-                      <button
-                        onClick={handleCsvDataExport}
-                        className="px-4 py-2 bg-[#001C3D] hover:bg-[#002D5E] text-[#8EF6D6] hover:text-white rounded-xl text-xs font-black transition-all shadow-md flex items-center gap-2 cursor-pointer border border-[#001C3D]/40 ml-auto xl:ml-0"
-                        id="export-raw-csv-verbatim-btn"
-                        title={`${globalYear}년 ${globalMonth}월 ${globalDay}일 기준 자료 다운로드`}
-                      >
-                        <Download className="w-4 h-4 animate-bounce" />
-                        <span>[CSV 원시 데이터 추출]</span>
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Dynamic interactive telemetry feedback charts */}
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6" id="analytics-visual-panels">
-                    
-                    {/* Visual Chart 1: Clip-board Copy Rate */}
-                    <div className="bg-white rounded-3xl p-6 border border-slate-150/80 shadow-sm space-y-4">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h4 className="text-sm font-black text-[#001C3D]">교사 클립보드 사용율</h4>
-                        </div>
-                        <span className="text-[10px] bg-slate-100 text-[#001C3D] px-2.5 py-0.5 rounded-full font-mono font-bold">1-Day Window</span>
-                      </div>
-
-                      {/* Interactive Telemetry Bar Simulator */}
-                      <div className="space-y-3.5 pt-2">
-                        <div>
-                          <div className="flex justify-between text-xs text-slate-500 mb-1">
-                            <span className="font-extrabold text-[#001C3D]">가정통신문 제작 (Copy Ingestion Rate)</span>
-                            <span className="font-mono font-bold text-slate-600">46% ({Math.round(dynamicCopyVolume * 0.46).toLocaleString()}회)</span>
-                          </div>
-                          <div className="h-3.5 bg-slate-100 rounded-full overflow-hidden">
-                            <div className="h-full bg-[#FF6B6B]" style={{ width: '46%' }}></div>
-                          </div>
-                        </div>
-
-                        <div>
-                          <div className="flex justify-between text-xs text-slate-500 mb-1">
-                            <span className="font-extrabold text-[#001C3D]">누리과정 PPT 교안 (Lesson Planner Ingestion)</span>
-                            <span className="font-mono font-bold text-slate-600">28% ({Math.round(dynamicCopyVolume * 0.28).toLocaleString()}회)</span>
-                          </div>
-                          <div className="h-3.5 bg-slate-100 rounded-full overflow-hidden">
-                            <div className="h-full bg-[#FFD93D]" style={{ width: '28%' }}></div>
-                          </div>
-                        </div>
-
-                        <div>
-                          <div className="flex justify-between text-xs text-slate-500 mb-1">
-                            <span className="font-extrabold text-[#001C3D]">학부모 긍정 관찰일지 (Behavior Analytics Tool)</span>
-                            <span className="font-mono font-bold text-slate-600">18% ({Math.round(dynamicCopyVolume * 0.18).toLocaleString()}회)</span>
-                          </div>
-                          <div className="h-3.5 bg-slate-100 rounded-full overflow-hidden">
-                            <div className="h-full bg-[#8EF6D6]" style={{ width: '18%' }}></div>
-                          </div>
-                        </div>
-
-                        <div>
-                          <div className="flex justify-between text-xs text-slate-500 mb-1">
-                            <span className="font-extrabold text-[#001C3D]">행사/카드뉴스 문구 (Social Ingestion Tool)</span>
-                            <span className="font-mono font-bold text-slate-600">8% ({Math.round(dynamicCopyVolume * 0.08).toLocaleString()}회)</span>
-                          </div>
-                          <div className="h-3.5 bg-slate-100 rounded-full overflow-hidden">
-                            <div className="h-full bg-slate-300" style={{ width: '8%' }}></div>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Cumulative copy count controller widget */}
-                      <div className="bg-[#F5F7FA] rounded-2xl p-4 flex items-center justify-between">
-                        <div>
-                          <span className="text-[10px] text-slate-400 block font-bold">누적 전체 복사량 (Total Telemetry Copied)</span>
-                          <span className="text-xl font-black text-[#001C3D] font-mono">{dynamicCopyVolume.toLocaleString()}회</span>
-                        </div>
-                        <button
-                          onClick={() => {
-                            setAnalyticsCopyVolume(prev => prev + 100);
-                            triggerToast('Telemetry Mock: 누적 복사 데이터 테스트 볼륨이 100회 상향 가속되었습니다.');
-                          }}
-                          className="bg-white hover:bg-slate-100 border border-slate-200 rounded-lg px-2.5 py-1 text-[10px] font-bold text-slate-600 cursor-pointer"
-                        >
-                          +100 시뮬레이트
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Visual Chart 2: Canvas Text Edit Volume */}
-                    <div className="bg-white rounded-3xl p-6 border border-slate-150/80 shadow-sm space-y-4">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          
-                          {/* Styled high-polish dropdown selector title */}
-                          <div className="relative z-30">
-                            <button
-                              type="button"
-                              onClick={() => setIsChartViewDropdownOpen(!isChartViewDropdownOpen)}
-                              className="text-left font-black text-[#001C3D] hover:text-[#FF6B6B] transition-colors flex items-center gap-1.5 focus:outline-none cursor-pointer group"
+                        <AnimatePresence>
+                          {showDatePicker && (
+                            <motion.div 
+                              initial={{ opacity: 0, y: 10 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              exit={{ opacity: 0, y: 10 }}
+                              className="absolute top-full left-0 mt-2 bg-white rounded-xl shadow-xl border border-slate-200 p-4 z-50 flex gap-4 min-w-[500px]"
                             >
-                              <span className="text-sm">
-                                {activeChartView === 'volume' && "📊 학급별 템플릿 텍스트 수정량 (Template Text Edit Volume) ▾"}
-                                {activeChartView === 'age' && "📊 연령별 프롬프트 편집 볼륨 (Prompt Edit Volume by Age) ▾"}
-                                {activeChartView === 'custom' && "📊 학급별 맞춤 프롬프트 작성량 (Customized Prompt Input Volume) ▾"}
-                              </span>
-                            </button>
+                              {/* Left: Presets */}
+                              <div className="flex flex-col gap-2 min-w-[120px] border-r border-slate-100 pr-4">
+                                {['이번 주', '지난 주', '이번 달', '지난 달', '올해 학년도', '지난 학년도'].map(preset => (
+                                  <button
+                                    key={preset}
+                                    onClick={() => {
+                                      setActivePreset(preset);
+                                      const now = new Date();
+                                      let start: Date;
+                                      let end: Date;
+                                      
+                                      if (preset === '이번 주') {
+                                        start = startOfWeek(now);
+                                        end = endOfWeek(now);
+                                        setDateRangeMode('weekly');
+                                        setCalendarDate(now);
+                                      } else if (preset === '지난 주') {
+                                        const lastWeek = subWeeks(now, 1);
+                                        start = startOfWeek(lastWeek);
+                                        end = endOfWeek(lastWeek);
+                                        setDateRangeMode('weekly');
+                                        setCalendarDate(lastWeek);
+                                      } else if (preset === '이번 달') {
+                                        start = startOfMonth(now);
+                                        end = endOfMonth(now);
+                                        setDateRangeMode('monthly');
+                                        setCalendarDate(now);
+                                      } else if (preset === '지난 달') {
+                                        const lastMonth = subMonths(now, 1);
+                                        start = startOfMonth(lastMonth);
+                                        end = endOfMonth(lastMonth);
+                                        setDateRangeMode('monthly');
+                                        setCalendarDate(lastMonth);
+                                      } else if (preset === '올해 학년도') {
+                                        const currentYear = now.getMonth() >= 2 ? now.getFullYear() : now.getFullYear() - 1;
+                                        start = new Date(currentYear, 2, 1);
+                                        end = subDays(new Date(currentYear + 1, 2, 1), 1);
+                                        setDateRangeMode('yearly');
+                                        setCalendarDate(start);
+                                      } else { // 지난 학년도
+                                        const prevYear = (now.getMonth() >= 2 ? now.getFullYear() : now.getFullYear() - 1) - 1;
+                                        start = new Date(prevYear, 2, 1);
+                                        end = subDays(new Date(prevYear + 1, 2, 1), 1);
+                                        setDateRangeMode('yearly');
+                                        setCalendarDate(start);
+                                      }
+                                      
+                                      setTempDateRange({ start, end });
+                                      
+                                      // 프리셋 클릭 즉시 캘린더 내부의 상단 날짜 미리보기 영역(선택된 기간)에 즉시 바인딩 됨
+                                    }}
+                                    className={`text-left px-3 py-2 rounded-lg text-sm font-bold transition-colors ${activePreset === preset ? 'bg-teal-50 text-teal-600' : 'text-slate-600 hover:bg-slate-50'}`}
+                                  >
+                                    {preset}
+                                  </button>
+                                ))}
+                              </div>
+                              
+                              {/* Right: Main Calendar area */}
+                              <div className="flex-1">
+                                {/* 상단 날짜 미리보기 영역 */}
+                                <div className="mb-4 bg-slate-50 p-3 rounded-xl border border-slate-200 shadow-inner flex items-center justify-between">
+                                  <span className="text-xs font-bold text-slate-500">선택된 기간</span>
+                                  <span className="text-sm font-black text-teal-600 font-mono tracking-tight">
+                                    {tempDateRange ? `${format(tempDateRange.start, 'yyyy-MM-dd')} ~ ${format(tempDateRange.end, 'yyyy-MM-dd')}` : '기간을 선택해주세요'}
+                                  </span>
+                                </div>
+                                {/* Tabs */}
+                                <div className="flex gap-2 mb-4 bg-slate-50 p-1 rounded-lg">
+                                  {(['weekly', 'monthly', 'yearly'] as const).map(mode => (
+                                    <button
+                                      key={mode}
+                                      className={`flex-1 text-xs font-bold py-1.5 rounded-md transition-colors ${dateRangeMode === mode ? 'bg-white shadow-sm text-teal-600' : 'text-slate-500 hover:text-slate-700'}`}
+                                      onClick={() => setDateRangeMode(mode)}
+                                    >
+                                      {mode === 'weekly' ? '주간' : mode === 'monthly' ? '월간' : '연간'}
+                                    </button>
+                                  ))}
+                                </div>
+                                
+                                {/* Date Picker Area */}
+                                {dateRangeMode === 'weekly' && (() => {
+                                  const year = calendarDate.getFullYear();
+                                  const month = calendarDate.getMonth();
+                                  const firstDayOfMonth = new Date(year, month, 1);
+                                  const startDayOfWeek = getDay(firstDayOfMonth);
+                                  const daysInMonth = getDaysInMonth(calendarDate);
+                                  const blanks = Array.from({ length: startDayOfWeek }).map((_, i) => i);
+                                  const days = Array.from({ length: daysInMonth }).map((_, i) => new Date(year, month, i + 1));
+                                  
+                                  return (
+                                    <div className="mb-4">
+                                      <div className="flex justify-between items-center mb-2 px-2">
+                                        <button onClick={() => setCalendarDate(subMonths(calendarDate, 1))} className="text-slate-400 hover:text-slate-600 p-1"><ChevronLeft className="w-4 h-4" /></button>
+                                        <span className="text-xs font-bold text-slate-700">{format(calendarDate, 'yyyy년 M월', { locale: ko })}</span>
+                                        <button onClick={() => setCalendarDate(addMonths(calendarDate, 1))} className="text-slate-400 hover:text-slate-600 p-1"><ChevronRight className="w-4 h-4" /></button>
+                                      </div>
+                                      <div className="grid grid-cols-7 gap-1 text-center">
+                                        {['일', '월', '화', '수', '목', '금', '토'].map(d => (
+                                          <div key={d} className="text-[10px] font-bold text-slate-400 py-1">{d}</div>
+                                        ))}
+                                        {blanks.map(b => <div key={`blank-${b}`} className="py-1.5" />)}
+                                        {days.map(d => {
+                                          const isSelected = tempDateRange && d >= tempDateRange.start && d <= tempDateRange.end;
+                                          return (
+                                            <button
+                                              key={d.toString()}
+                                              onClick={() => { setTempDateRange({ start: startOfWeek(d), end: endOfWeek(d) }); setActivePreset(''); }}
+                                              className={`text-xs py-1.5 rounded-md font-medium transition-colors ${isSelected ? 'bg-teal-500 text-white shadow-sm' : 'text-slate-600 hover:bg-teal-50 hover:text-teal-600'}`}
+                                            >
+                                              {d.getDate()}
+                                            </button>
+                                          );
+                                        })}
+                                      </div>
+                                    </div>
+                                  );
+                                })()}
 
-                            {/* Dropdown menu to select the view and simulate selectable options */}
-                            {isChartViewDropdownOpen && (
-                              <>
-                                <div
-                                  className="fixed inset-0"
-                                  onClick={() => setIsChartViewDropdownOpen(false)}
-                                />
-                                <div className="absolute left-0 mt-1.5 bg-white border border-slate-200 rounded-xl shadow-xl py-1 z-30 min-w-[325px] overflow-hidden divide-y divide-slate-100 animate-slideDown">
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setActiveChartView('volume');
-                                      setIsChartViewDropdownOpen(false);
-                                    }}
-                                    className={`w-full text-left px-3.5 py-2.5 text-xs font-bold transition-colors block cursor-pointer ${
-                                      activeChartView === 'volume' ? 'text-[#FF6B6B] bg-slate-50' : 'text-slate-600 hover:bg-slate-50'
-                                    }`}
+                                {dateRangeMode === 'monthly' && (() => {
+                                  const year = calendarDate.getFullYear();
+                                  const months = Array.from({ length: 12 }).map((_, i) => i);
+                                  return (
+                                    <div className="mb-4">
+                                      <div className="flex justify-between items-center mb-4 px-2">
+                                        <button onClick={() => setCalendarDate(subYears(calendarDate, 1))} className="text-slate-400 hover:text-slate-600 p-1"><ChevronLeft className="w-4 h-4" /></button>
+                                        <span className="text-xs font-bold text-slate-700">{year}년</span>
+                                        <button onClick={() => setCalendarDate(addYears(calendarDate, 1))} className="text-slate-400 hover:text-slate-600 p-1"><ChevronRight className="w-4 h-4" /></button>
+                                      </div>
+                                      <div className="grid grid-cols-3 gap-2">
+                                        {months.map(m => {
+                                          const d = new Date(year, m, 1);
+                                          const isSelected = tempDateRange && tempDateRange.start.getFullYear() === year && tempDateRange.start.getMonth() === m;
+                                          return (
+                                            <button
+                                              key={m}
+                                              onClick={() => { setTempDateRange({ start: startOfMonth(d), end: endOfMonth(d) }); setActivePreset(''); }}
+                                              className={`text-xs py-3 rounded-lg font-bold transition-colors ${isSelected ? 'bg-teal-500 text-white shadow-sm' : 'bg-slate-50 text-slate-600 hover:bg-teal-50 hover:text-teal-600'}`}
+                                            >
+                                              {m + 1}월
+                                            </button>
+                                          );
+                                        })}
+                                      </div>
+                                    </div>
+                                  );
+                                })()}
+
+                                {dateRangeMode === 'yearly' && (() => {
+                                  const currentYear = calendarDate.getFullYear();
+                                  const startYear = currentYear - (currentYear % 6);
+                                  const years = Array.from({ length: 6 }).map((_, i) => startYear + i);
+                                  return (
+                                    <div className="mb-4">
+                                      <div className="flex justify-between items-center mb-4 px-2">
+                                        <button onClick={() => setCalendarDate(subYears(calendarDate, 6))} className="text-slate-400 hover:text-slate-600 p-1"><ChevronLeft className="w-4 h-4" /></button>
+                                        <span className="text-xs font-bold text-slate-700">{startYear} - {startYear + 5}</span>
+                                        <button onClick={() => setCalendarDate(addYears(calendarDate, 6))} className="text-slate-400 hover:text-slate-600 p-1"><ChevronRight className="w-4 h-4" /></button>
+                                      </div>
+                                      <div className="grid grid-cols-2 gap-2">
+                                        {years.map(y => {
+                                          const d = new Date(y, 0, 1);
+                                          const isSelected = tempDateRange && tempDateRange.start.getFullYear() === y;
+                                          return (
+                                            <button
+                                              key={y}
+                                              onClick={() => { setTempDateRange({ start: startOfYear(d), end: endOfYear(d) }); setActivePreset(''); }}
+                                              className={`text-xs py-4 rounded-lg font-bold transition-colors ${isSelected ? 'bg-teal-500 text-white shadow-sm' : 'bg-slate-50 text-slate-600 hover:bg-teal-50 hover:text-teal-600'}`}
+                                            >
+                                              {y}년
+                                            </button>
+                                          );
+                                        })}
+                                      </div>
+                                    </div>
+                                  );
+                                })()}
+
+                                {/* Actions */}
+                                <div className="flex justify-end gap-2 pt-4 border-t border-slate-100">
+                                  <button 
+                                    onClick={() => setShowDatePicker(false)}
+                                    className="px-4 py-2 text-xs font-bold text-slate-500 hover:text-slate-700 hover:bg-slate-50 rounded-lg transition-colors"
                                   >
-                                    학급별 템플릿 텍스트 수정량 (Template Text Edit Volume)
+                                    취소
                                   </button>
-                                  <button
-                                    type="button"
+                                  <button 
                                     onClick={() => {
-                                      setActiveChartView('age');
-                                      setIsChartViewDropdownOpen(false);
+                                      if (tempDateRange) {
+                                        setSelectedDateLabel(`${format(tempDateRange.start, 'yyyy-MM-dd')} ~ ${format(tempDateRange.end, 'yyyy-MM-dd')}`);
+                                      }
+                                      setShowDatePicker(false);
+                                      triggerToast('✅ 기간이 적용되었습니다.');
                                     }}
-                                    className={`w-full text-left px-3.5 py-2.5 text-xs font-bold transition-colors block cursor-pointer ${
-                                      activeChartView === 'age' ? 'text-[#FF6B6B] bg-slate-50' : 'text-slate-600 hover:bg-slate-50'
-                                    }`}
+                                    className="px-4 py-2 text-xs font-bold text-white bg-teal-600 hover:bg-teal-700 rounded-lg transition-colors shadow-sm"
                                   >
-                                    연령별 프롬프트 편집 볼륨 (Prompt Edit Volume by Age)
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setActiveChartView('custom');
-                                      setIsChartViewDropdownOpen(false);
-                                    }}
-                                    className={`w-full text-left px-3.5 py-2.5 text-xs font-bold transition-colors block cursor-pointer ${
-                                      activeChartView === 'custom' ? 'text-[#FF6B6B] bg-slate-50' : 'text-slate-600 hover:bg-slate-50'
-                                    }`}
-                                  >
-                                    학급별 맞춤 프롬프트 작성량 (Customized Prompt Input Volume)
+                                    적용
                                   </button>
                                 </div>
-                              </>
-                            )}
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </div>
+                    </div>
+
+                    {/* Analytics Tabs */}
+                    <div className="flex items-center gap-2 bg-slate-100 p-1.5 rounded-xl">
+                      {[
+                        { id: 'branch', label: '지사별 사용량' },
+                        { id: 'kindergarten', label: '원별 사용량' },
+                        { id: 'template', label: '템플릿별 사용량' }
+                      ].map(tab => (
+                        <button
+                          key={tab.id}
+                          onClick={() => setAnalyticsTab(tab.id as any)}
+                          className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+                            analyticsTab === tab.id 
+                              ? 'bg-white text-[#001C3D] shadow-sm' 
+                              : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'
+                          }`}
+                        >
+                          {tab.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Tab Content */}
+                  <div className="mt-6">
+                    {/* 1. 지사별 사용량 탭 */}
+                    {analyticsTab === 'branch' && (
+                      <div className="space-y-6 animate-fadeIn">
+                        <div className="flex justify-between items-end mb-2">
+                          <h3 className="text-sm font-black text-[#001C3D]">상위 5개 지사별 사용량</h3>
+                          <button
+                            onClick={() => {
+                              const csvHeaders = 'No,지사명,관리 원 수,순 실행 수,누적 실행 수';
+                              const csvRows = branchData.map(d => `${d.no},"${d.name}",${d['관리 원 수']},${d['순 실행 수']},${d['누적 실행 수']}`).join('\n');
+                              const blob = new Blob(['\uFEFF' + csvHeaders + '\n' + csvRows], { type: 'text/csv;charset=utf-8;' });
+                              const link = document.createElement('a');
+                              link.href = URL.createObjectURL(blob);
+                              link.download = `지사별_사용량_${format(new Date(), 'yyyyMMdd')}.csv`;
+                              document.body.appendChild(link);
+                              link.click();
+                              document.body.removeChild(link);
+                              triggerToast('✅ 지사별 사용량 데이터가 엑셀(CSV)로 다운로드 되었습니다.');
+                            }}
+                            className="px-3 py-1.5 bg-[#001C3D] hover:bg-[#002D5E] text-[#8EF6D6] rounded-lg text-xs font-bold transition-colors flex items-center gap-1.5 shadow-sm"
+                          >
+                            <Download className="w-3.5 h-3.5" />
+                            엑셀 다운로드
+                          </button>
+                        </div>
+                        
+                        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm h-[300px]">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={branchData} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                              <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#E2E8F0" />
+                              <XAxis type="number" stroke="#94A3B8" fontSize={10} />
+                              <YAxis dataKey="name" type="category" stroke="#64748B" fontSize={11} fontWeight={700} width={80} />
+                              <Tooltip
+                                contentStyle={{ backgroundColor: '#0F172A', border: 'none', borderRadius: '8px', color: '#fff' }}
+                                itemStyle={{ color: '#E2E8F0', fontSize: '12px' }}
+                                labelStyle={{ color: '#94A3B8', fontWeight: 'bold', marginBottom: '4px' }}
+                                cursor={{ fill: '#F1F5F9' }}
+                              />
+                              <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
+                              <Bar dataKey="순 실행 수" fill="#FF6B6B" radius={[0, 4, 4, 0]} />
+                              <Bar dataKey="누적 실행 수" fill="#001C3D" radius={[0, 4, 4, 0]} />
+                            </BarChart>
+                          </ResponsiveContainer>
+                        </div>
+
+                        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden mt-4">
+                          <table className="w-full text-left text-xs">
+                            <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 font-bold">
+                              <tr>
+                                <th className="px-4 py-3">No</th>
+                                <th className="px-4 py-3">지사명</th>
+                                <th className="px-4 py-3">관리 원 수</th>
+                                <th className="px-4 py-3">순 실행 수</th>
+                                <th className="px-4 py-3">누적 실행 수</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                              {branchData.map((row) => (
+                                <tr key={row.no} className="hover:bg-slate-50/50">
+                                  <td className="px-4 py-3 font-mono text-slate-400">{row.no}</td>
+                                  <td className="px-4 py-3 font-bold text-slate-700">{row.name}</td>
+                                  <td className="px-4 py-3 text-slate-600">{row['관리 원 수'].toLocaleString()}</td>
+                                  <td className="px-4 py-3 font-mono font-bold text-teal-600">{row['순 실행 수'].toLocaleString()}</td>
+                                  <td className="px-4 py-3 font-mono font-bold text-[#001C3D]">{row['누적 실행 수'].toLocaleString()}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 2. 원별 사용량 탭 */}
+                    {analyticsTab === 'kindergarten' && (
+                      <div className="space-y-6 animate-fadeIn">
+                        <div className="flex justify-between items-end mb-2">
+                          <h3 className="text-sm font-black text-[#001C3D]">원별 사용량 및 접속 추이</h3>
+                          <button
+                            onClick={() => {
+                              const csvHeaders = 'No,원명,소속 지사,접속 수,실행 수';
+                              const csvRows = kindergartenTableData.map(d => `${d.no},"${d.name}","${d.branch}",${d['접속 수']},${d['실행 수']}`).join('\n');
+                              const blob = new Blob(['\uFEFF' + csvHeaders + '\n' + csvRows], { type: 'text/csv;charset=utf-8;' });
+                              const link = document.createElement('a');
+                              link.href = URL.createObjectURL(blob);
+                              link.download = `원별_사용량_${format(new Date(), 'yyyyMMdd')}.csv`;
+                              document.body.appendChild(link);
+                              link.click();
+                              document.body.removeChild(link);
+                              triggerToast('✅ 원별 사용량 데이터가 엑셀(CSV)로 다운로드 되었습니다.');
+                            }}
+                            className="px-3 py-1.5 bg-[#001C3D] hover:bg-[#002D5E] text-[#8EF6D6] rounded-lg text-xs font-bold transition-colors flex items-center gap-1.5 shadow-sm"
+                          >
+                            <Download className="w-3.5 h-3.5" />
+                            엑셀 다운로드
+                          </button>
+                        </div>
+
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm h-[250px]">
+                            <h4 className="text-xs font-bold text-slate-500 mb-4">원별 주간 접속 추이</h4>
+                            <ResponsiveContainer width="100%" height="100%">
+                              <LineChart data={kindergartenTrendData} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
+                                <XAxis dataKey="name" stroke="#94A3B8" fontSize={10} />
+                                <YAxis stroke="#94A3B8" fontSize={10} />
+                                <Tooltip
+                                  contentStyle={{ backgroundColor: '#0F172A', border: 'none', borderRadius: '8px', color: '#fff' }}
+                                  itemStyle={{ color: '#E2E8F0', fontSize: '12px', fontWeight: 'bold' }}
+                                  labelStyle={{ color: '#94A3B8', fontWeight: 'bold', marginBottom: '4px' }}
+                                />
+                                <Line type="monotone" dataKey="접속 수" stroke="#FF6B6B" strokeWidth={3} dot={{ r: 4, strokeWidth: 2 }} activeDot={{ r: 6 }} />
+                              </LineChart>
+                            </ResponsiveContainer>
+                          </div>
+                          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm h-[250px]">
+                            <h4 className="text-xs font-bold text-slate-500 mb-4">연령별 템플릿 사용량</h4>
+                            <ResponsiveContainer width="100%" height="100%">
+                              <BarChart data={ageUsageData} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
+                                <XAxis dataKey="name" stroke="#94A3B8" fontSize={10} />
+                                <YAxis stroke="#94A3B8" fontSize={10} />
+                                <Tooltip
+                                  contentStyle={{ backgroundColor: '#0F172A', border: 'none', borderRadius: '8px', color: '#fff' }}
+                                  itemStyle={{ color: '#E2E8F0', fontSize: '12px' }}
+                                  labelStyle={{ color: '#94A3B8', fontWeight: 'bold', marginBottom: '4px' }}
+                                  cursor={{ fill: '#F1F5F9' }}
+                                />
+                                <Bar dataKey="사용량" fill="#001C3D" radius={[4, 4, 0, 0]} barSize={40} />
+                              </BarChart>
+                            </ResponsiveContainer>
                           </div>
                         </div>
-                        <span className="text-[10px] bg-slate-100 text-[#001C3D] px-2.5 py-0.5 rounded-full font-mono font-bold">Realtime Thread</span>
-                      </div>
 
-                      {/* Bar graph / Custom SVG visual grid representing quantitative research curves */}
-                      <div className="h-36 flex items-end justify-between gap-1 border-b border-l border-slate-200 pb-2 pl-2">
-                        {(() => {
-                          const baseMap = {
-                            volume: [
-                              { val: 40, label: '만 0세' },
-                              { val: 65, label: '만 1세' },
-                              { val: 85, label: '만 2세' },
-                              { val: 120, label: '만 3세햇살' },
-                              { val: 95, label: '만 4세' },
-                              { val: 110, label: '만 5세' },
-                              { val: 50, label: '기타교란' }
-                            ],
-                            age: [
-                              { val: 30, label: '만 0세' },
-                              { val: 50, label: '만 1세' },
-                              { val: 115, label: '만 2세' },
-                              { val: 80, label: '만 3세햇살' },
-                              { val: 110, label: '만 4세' },
-                              { val: 75, label: '만 5세' },
-                              { val: 90, label: '기타교란' }
-                            ],
-                            custom: [
-                              { val: 85, label: '만 0세' },
-                              { val: 45, label: '만 1세' },
-                              { val: 65, label: '만 2세' },
-                              { val: 100, label: '만 3세햇살' },
-                              { val: 125, label: '만 4세' },
-                              { val: 60, label: '만 5세' },
-                              { val: 70, label: '기타교란' }
-                            ]
-                          };
-                          
-                          const currentList = baseMap[activeChartView] || baseMap.volume;
-                          return currentList.map((bar, idx) => {
-                            const shift = ((bar.val * (dateSeed ?? 0)) % 31) - 15;
-                            const finalVal = Math.max(15, Math.min(130, bar.val + shift));
-                            return (
-                              <div key={idx} className="flex-1 flex flex-col items-center group relative">
-                                {/* Hover detail tooltip */}
-                                <div className="opacity-0 group-hover:opacity-100 absolute -top-10 bg-slate-900 text-white text-[10px] py-1 px-1.5 rounded-md z-10 transition-opacity whitespace-nowrap">
-                                  수정량: {finalVal}단어 / 회
-                                </div>
-                                {/* Colorful responsive bar */}
-                                <div
-                                  className="w-full rounded-t bg-gradient-to-t from-[#001C3D] to-[#FF6B6B] group-hover:to-[#FFD93D] transition-all cursor-pointer animate-fadeIn"
-                                  style={{ height: `${(finalVal / 130) * 100}px` }}
-                                ></div>
-                                <span className="text-[9px] text-slate-400 mt-1 text-center scale-90 whitespace-nowrap font-bold">
-                                  {bar.label}
-                                </span>
-                              </div>
-                            );
-                          });
-                        })()}
-                      </div>
-
-                      {/* Cumulative edits widget */}
-                      <div className="bg-[#F5F7FA] rounded-2xl p-4 flex items-center justify-between">
-                        <div>
-                          <span className="text-[10px] text-slate-400 block font-bold">총 텍스트 수정 및 편집 볼륨 (Total Tokens Edited)</span>
-                          <span className="text-xl font-black text-[#001C3D] font-mono">{dynamicEditVolume.toLocaleString()} 단어</span>
-                        </div>
-                        <button
-                          onClick={() => {
-                            setAnalyticsEditVolume(prev => prev + 250);
-                            triggerToast('Telemetry Mock: 문항 조립 가변 검수량이 250 단어 가산되었습니다.');
-                          }}
-                          className="bg-white hover:bg-slate-100 border border-slate-200 rounded-lg px-2.5 py-1 text-[10px] font-bold text-[#001C3D] cursor-pointer"
-                        >
-                          +250 시뮬레이트
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* 5. Teacher Growth Report & Praise (Gamification & Supportive element) */}
-                  <div className="bg-white rounded-3xl p-6 border border-slate-150 shadow-sm font-sans">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-100 pb-3 mb-4 gap-3">
-                      <div>
-                        <h4 className="text-base font-black text-[#001C3D] flex items-center gap-1.5">
-                          <Award className="w-4 h-4 text-[#FF6B6B]" />
-                          교사 활용 데이터
-                        </h4>
-                      </div>
-
-                      <div className="flex items-center gap-3">
-                        <span className="text-[10px] sm:inline-block hidden font-mono font-bold bg-[#E8FBF4] text-[#059669] px-2.5 py-0.5 rounded-full">
-                          {teachers.length}명의 현역교사 연동 중
-                        </span>
-
-                        {/* Dropdown filter for Specific institutions */}
-                        <div className="flex items-center gap-1">
-                          <span className="text-xs font-bold text-slate-500 whitespace-nowrap">[🏫 기관별 필터링 ▾]</span>
-                          <select
-                            value={institutionFilter}
-                            onChange={(e) => setInstitutionFilter(e.target.value)}
-                            className="text-xs font-bold bg-slate-50 border border-slate-200 text-slate-700 py-1 px-2.5 rounded-lg cursor-pointer transition-colors focus:ring-1 focus:ring-[#FF6B6B] focus:outline-none"
-                          >
-                            <option value="전체">전체 기관</option>
-                            <option value="해오름 유치원">해오름 유치원</option>
-                            <option value="새싹 어린이집">새싹 어린이집</option>
-                          </select>
+                        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden mt-4">
+                          <table className="w-full text-left text-xs">
+                            <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 font-bold">
+                              <tr>
+                                <th className="px-4 py-3">No</th>
+                                <th className="px-4 py-3">원명</th>
+                                <th className="px-4 py-3">소속 지사</th>
+                                <th className="px-4 py-3">접속 수</th>
+                                <th className="px-4 py-3">실행 수</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                              {kindergartenTableData.map((row) => (
+                                <tr key={row.no} className="hover:bg-slate-50/50">
+                                  <td className="px-4 py-3 font-mono text-slate-400">{row.no}</td>
+                                  <td className="px-4 py-3 font-bold text-slate-700">{row.name}</td>
+                                  <td className="px-4 py-3 text-slate-600"><span className="bg-slate-100 px-2 py-0.5 rounded text-[10px]">{row.branch}</span></td>
+                                  <td className="px-4 py-3 font-mono font-bold text-teal-600">{row['접속 수'].toLocaleString()}</td>
+                                  <td className="px-4 py-3 font-mono font-bold text-[#FF6B6B]">{row['실행 수'].toLocaleString()}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
                         </div>
                       </div>
-                    </div>
+                    )}
 
-                    {/* Table showing 'Teacher Growth & Gamification' as requested */}
-                    <div className="overflow-x-auto">
-                      <table className="w-full border-collapse text-left" id="gamification-teachers-table">
-                        <thead>
-                          <tr className="border-b border-slate-100 text-slate-400 text-[10px] font-bold uppercase tracking-wider">
-                            <th className="py-3 px-4">이름 (Name)</th>
-                            <th className="py-3 px-4">소속 기관 (Institution)</th>
-                            <th className="py-3 px-4">대표 뱃지 (Badge)</th>
-                            <th className="py-3 px-4 text-center">누적 활용 빈도 (Utilization Count)</th>
-                            <th className="py-3 px-4 text-center">선물 및 칭찬 지원 (Actions)</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-50 text-sm">
-                          {dynamicTeachersList
-                            .filter(t => institutionFilter === '전체' || t.institution === institutionFilter)
-                            .map(t => (
-                            <tr key={t.id} className="hover:bg-slate-50/50 transition-colors">
-                              <td className="py-4 px-4 font-bold text-slate-800">
-                                <div className="flex items-center gap-2">
-                                  <div className="w-7 h-7 rounded-lg bg-[#001C3D]/10 text-[#001C3D] text-[11px] font-black flex items-center justify-center">
-                                    {t.name.slice(0, 1)}
-                                  </div>
-                                  <span>{t.name}</span>
-                                </div>
-                              </td>
-                              <td className="py-4 px-4">
-                                <button
-                                  onClick={() => setInstitutionFilter(t.institution || '전체')}
-                                  title={`${t.institution || '기관'}만 보기`}
-                                  className="text-xs font-semibold text-slate-500 hover:text-[#001C3D] underline decoration-dotted underline-offset-4 cursor-pointer hover:bg-slate-100/50 px-1.5 py-0.5 rounded transition-all text-left"
-                                >
-                                  {t.institution || '일반 기관'}
-                                </button>
-                              </td>
-                              <td className="py-4 px-4">
-                                <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold ring-1 ring-slate-100 ${
-                                  t.badgeColor === 'mint' ? 'bg-[#E8FBF4] text-[#059669]' :
-                                  t.badgeColor === 'yellow' ? 'bg-[#FFF9E6] text-[#D97706]' :
-                                  t.badgeColor === 'coral' ? 'bg-[#FFF1F2] text-[#E11D48]' :
-                                  'bg-[#F0F2F5] text-[#334155]'
-                                }`}>
-                                  ⭐ [{t.badge}]
-                                </span>
-                              </td>
-                              <td className="py-4 px-4 text-center font-mono font-bold text-[#001C3D]">
-                                {t.runs}회 호출
-                              </td>
-                              <td className="py-4 px-4">
-                                <div className="flex items-center justify-center gap-2">
-                                  
-                                  {/* Action button labeled verbatim with [선물 보내기] */}
-                                  <button
-                                    id={`btn-gift-verbatim-${t.id}`}
-                                    onClick={() => handleSendGift(t.id, t.name)}
-                                    className="px-3 py-1.5 rounded-xl border border-slate-200 hover:border-accent-coral hover:bg-accent-coral/5 text-slate-700 hover:text-accent-coral text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
-                                  >
-                                    <Gift className="w-3.5 h-3.5 text-rose-500" />
-                                    <span>[선물 보내기]</span>
-                                  </button>
+                    {/* 3. 템플릿별 사용량 탭 */}
+                    {analyticsTab === 'template' && (
+                      <div className="space-y-4 animate-fadeIn">
+                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-3 mb-2">
+                          <h3 className="text-sm font-black text-[#001C3D]">템플릿별 상세 사용량</h3>
+                          <div className="flex items-center gap-2 w-full sm:w-auto">
+                            <div className="relative w-full sm:w-64">
+                              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
+                              <input
+                                type="text"
+                                placeholder="템플릿명 검색..."
+                                value={searchTemplate}
+                                onChange={(e) => setSearchTemplate(e.target.value)}
+                                className="w-full pl-9 pr-4 py-1.5 bg-white border border-slate-200 rounded-lg text-xs focus:ring-2 focus:ring-teal-500 focus:outline-none transition-all"
+                              />
+                            </div>
+                            <button
+                              onClick={() => {
+                                const csvHeaders = 'No,템플릿명,대상 연령,다운로드 수,순 실행 수';
+                                const dataToExport = searchTemplate ? templateTableData.filter(d => d.name.includes(searchTemplate)) : templateTableData;
+                                const csvRows = dataToExport.map(d => `${d.no},"${d.name}","${d.age}",${d['다운로드 수']},${d['순 실행 수']}`).join('\n');
+                                const blob = new Blob(['\uFEFF' + csvHeaders + '\n' + csvRows], { type: 'text/csv;charset=utf-8;' });
+                                const link = document.createElement('a');
+                                link.href = URL.createObjectURL(blob);
+                                link.download = `템플릿별_사용량_${format(new Date(), 'yyyyMMdd')}.csv`;
+                                document.body.appendChild(link);
+                                link.click();
+                                document.body.removeChild(link);
+                                triggerToast('✅ 템플릿별 사용량 데이터가 엑셀(CSV)로 다운로드 되었습니다.');
+                              }}
+                              className="px-3 py-1.5 bg-[#001C3D] hover:bg-[#002D5E] text-[#8EF6D6] rounded-lg text-xs font-bold transition-colors flex items-center gap-1.5 shadow-sm whitespace-nowrap"
+                            >
+                              <Download className="w-3.5 h-3.5" />
+                              엑셀 다운로드
+                            </button>
+                          </div>
+                        </div>
 
-                                  {/* Action button labeled verbatim with [칭찬 스티커 발송] */}
-                                  <button
-                                    id={`btn-sticker-verbatim-${t.id}`}
-                                    onClick={() => handleSendSticker(t.id, t.name)}
-                                    className="px-3 py-1.5 rounded-xl bg-[#001C3D] hover:bg-[#002D5E] text-white text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
-                                  >
-                                    <Smile className="w-3.5 h-3.5 text-yellow-300" />
-                                    <span>[칭찬 스티커 발송]</span>
-                                  </button>
-
-                                </div>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
+                        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden mt-4">
+                          <table className="w-full text-left text-xs">
+                            <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 font-bold">
+                              <tr>
+                                <th className="px-4 py-3">No</th>
+                                <th className="px-4 py-3 w-1/3">템플릿명</th>
+                                <th className="px-4 py-3 text-center">대상 연령</th>
+                                <th className="px-4 py-3 text-right">다운로드(복사) 수</th>
+                                <th className="px-4 py-3 text-right">순 실행 수</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                              {templateTableData
+                                .filter(row => !searchTemplate || row.name.includes(searchTemplate))
+                                .map((row) => (
+                                <tr key={row.no} className="hover:bg-slate-50/50">
+                                  <td className="px-4 py-3 font-mono text-slate-400">{row.no}</td>
+                                  <td className="px-4 py-3 font-bold text-[#001C3D]">{row.name}</td>
+                                  <td className="px-4 py-3 text-center">
+                                    <span className="bg-[#FFF1F2] text-[#E11D48] px-2 py-0.5 rounded text-[10px] font-bold border border-[#E11D48]/20">{row.age}</span>
+                                  </td>
+                                  <td className="px-4 py-3 font-mono font-bold text-slate-600 text-right">{row['다운로드 수'].toLocaleString()}</td>
+                                  <td className="px-4 py-3 font-mono font-black text-[#FF6B6B] text-right">{row['순 실행 수'].toLocaleString()}</td>
+                                </tr>
+                              ))}
+                              {templateTableData.filter(row => !searchTemplate || row.name.includes(searchTemplate)).length === 0 && (
+                                <tr>
+                                  <td colSpan={5} className="px-4 py-8 text-center text-slate-400 font-bold">
+                                    검색된 템플릿이 없습니다.
+                                  </td>
+                                </tr>
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
                   </div>
-
                 </div>
               )}
-
               {adminTab === 'folders' && (() => {
                 // Calculate folder statistics
                 const totalPersonal = personalFolders.length;
